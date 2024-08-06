@@ -9,5 +9,6 @@ thiserror = "1.0.63"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+wildcard_imports = "allow"
 # this is temporary, remove this line once we're actually writing docs
 missing_errors_doc = "allow"
