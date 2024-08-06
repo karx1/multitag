@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+id3 = "1.14.0"
+thiserror = "1.0.63"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# this is temporary, remove this line once we're actually writing docs
+missing_errors_doc = "allow"
