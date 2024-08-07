@@ -16,6 +16,8 @@ pub enum Error {
     UnsupportedFormat,
     #[error("{0}")]
     Id3Error(#[from] id3::Error),
+    #[error("Unable to parse timestamp from string")]
+    TimestampParseError,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -82,6 +84,45 @@ impl Tag {
                     });
                 }
             }
+        }
+    }
+
+    #[must_use]
+    pub fn title(&self) -> Option<&str> {
+        match self {
+            Self::Id3Tag { inner } => inner.title(),
+        }
+    }
+
+    pub fn set_title(&mut self, title: &str) {
+        match self {
+            Self::Id3Tag { inner } => inner.set_title(title),
+        }
+    }
+
+    #[must_use]
+    pub fn artist(&self) -> Option<&str> {
+        match self {
+            Self::Id3Tag { inner } => inner.artist(),
+        }
+    }
+
+    pub fn set_artist(&mut self, artist: &str) {
+        match self {
+            Self::Id3Tag { inner } => inner.set_artist(artist),
+        }
+    }
+
+    #[must_use]
+    pub fn date(&self) -> Option<Timestamp> {
+        match self {
+            Self::Id3Tag { inner } => inner.date_released().map(std::convert::Into::into),
+        }
+    }
+
+    pub fn set_date(&mut self, timestamp: Timestamp) {
+        match self {
+            Self::Id3Tag { inner } => inner.set_date_released(timestamp.into()),
         }
     }
 }
