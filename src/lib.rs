@@ -5,6 +5,7 @@ use id3::Tag as Id3InternalTag;
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
 use std::path::Path;
+use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -165,20 +166,10 @@ impl Tag {
     pub fn date(&self) -> Option<Timestamp> {
         match self {
             Self::Id3Tag { inner } => inner.date_released().map(std::convert::Into::into),
-            Self::VorbisFlacTag { inner } => {
-                inner
-                    .get_vorbis("DATE")?
-                    .next()
-                    .map(|s: &str| -> Option<Timestamp> {
-                        let date = s.split('-').collect::<Vec<&str>>();
-                        Some(Timestamp {
-                            year: date[0].parse().ok()?,
-                            month: date[1].parse().ok(),
-                            day: date[2].parse().ok(),
-                            ..Default::default()
-                        })
-                    })?
-            }
+            Self::VorbisFlacTag { inner } => inner
+                .get_vorbis("DATE")?
+                .next()
+                .map(|s| -> Option<Timestamp> { Timestamp::from_str(s).ok() })?,
         }
     }
 
