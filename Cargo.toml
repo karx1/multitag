@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 id3 = "1.14.0"
 thiserror = "1.0.63"
+metaflac = { git = "ssh://git@github.com/hungl6844/rust-metaflac.git" }
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
