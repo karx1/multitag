@@ -61,7 +61,7 @@ impl Tag {
             }
             "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
                 let inner = Mp4InternalTag::read_from_path(path)?;
-                Ok(Self::Mp4Tag { inner: inner })
+                Ok(Self::Mp4Tag { inner })
             }
             _ => Err(Error::UnsupportedFormat),
         }
@@ -106,7 +106,7 @@ impl Tag {
                 })
             }
             Self::Mp4Tag { inner } => {
-                let cover = inner.artwork().map(|pic| Picture::from(pic));
+                let cover = inner.artwork().map(Picture::from);
                 Some(Album {
                     title: inner.title()?.into(),
                     artist: inner.artist()?.into(),
@@ -154,7 +154,7 @@ impl Tag {
                     let pic: Result<Mp4Picture<Vec<u8>>> = picture.into();
                     match pic {
                         Ok(p) => inner.set_artwork(p),
-                        Err(e) => eprintln!("{}", e),
+                        Err(e) => eprintln!("{e}"),
                     }
                 }
             }
@@ -209,14 +209,12 @@ impl Tag {
                 .get_vorbis("DATE")?
                 .next()
                 .map(|s| Timestamp::from_str(s).ok())?,
-            Self::Mp4Tag { inner } => {
-                inner
+            Self::Mp4Tag { inner } => inner
                 .data()
                 .find(|data| matches!(data.0.fourcc().unwrap_or_default().0, [169, 100, 97, 121]))
                 .map(|data| -> Option<Timestamp> {
                     Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
-                })?
-            }
+                })?,
         }
     }
 
@@ -232,12 +230,15 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )],
             ),
-            Self::Mp4Tag { inner } => inner.set_data(Mp4Fourcc([169, 100, 97, 121]), Mp4Data::Utf8(format!(
-                "{:04}-{:02}-{:02}",
-                timestamp.year,
-                timestamp.month.unwrap_or_default(),
-                timestamp.day.unwrap_or_default()
-            )))
+            Self::Mp4Tag { inner } => inner.set_data(
+                Mp4Fourcc([169, 100, 97, 121]),
+                Mp4Data::Utf8(format!(
+                    "{:04}-{:02}-{:02}",
+                    timestamp.year,
+                    timestamp.month.unwrap_or_default(),
+                    timestamp.day.unwrap_or_default()
+                )),
+            ),
         }
     }
 }
