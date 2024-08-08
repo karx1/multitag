@@ -6,7 +6,7 @@ use mp4ameta::Img as Mp4Picture;
 use mp4ameta::ImgFmt as Mp4ImageFmt;
 use std::str::FromStr;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Album {
     pub title: String,
     pub artist: String,

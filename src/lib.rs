@@ -1,4 +1,4 @@
-mod data;
+pub mod data;
 
 use data::*;
 use id3::Tag as Id3InternalTag;
@@ -52,11 +52,11 @@ impl Tag {
             .ok_or(Error::InvalidFileExtension)?;
         match extension {
             "mp3" | "wav" | "aiff" => {
-                let inner = Id3InternalTag::read_from_path(path)?;
+                let inner = Id3InternalTag::read_from_path(path).unwrap_or_default();
                 Ok(Self::Id3Tag { inner })
             }
             "flac" => {
-                let inner = FlacInternalTag::read_from_path(path)?;
+                let inner = FlacInternalTag::read_from_path(path).unwrap_or_default();
                 Ok(Self::VorbisFlacTag { inner })
             }
             "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
