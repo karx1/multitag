@@ -7,6 +7,7 @@ edition = "2021"
 id3 = "1.14.0"
 thiserror = "1.0.63"
 metaflac = { git = "https://github.com/hungl6844/rust-metaflac.git" }
+mp4ameta = "0.11.0"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

@@ -4,6 +4,11 @@ use data::*;
 use id3::Tag as Id3InternalTag;
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
+use mp4ameta::Data as Mp4Data;
+use mp4ameta::Fourcc as Mp4Fourcc;
+use mp4ameta::Ident as Mp4Ident;
+use mp4ameta::Img as Mp4Picture;
+use mp4ameta::Tag as Mp4InternalTag;
 use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
@@ -20,8 +25,12 @@ pub enum Error {
     Id3Error(#[from] id3::Error),
     #[error("{0}")]
     FlacError(#[from] metaflac::Error),
+    #[error("{0}")]
+    Mp4Error(#[from] mp4ameta::Error),
     #[error("Unable to parse timestamp from string")]
     TimestampParseError,
+    #[error("given cover image data is not of valid type (bmp, jpeg, png)")]
+    InvalidImageFormat,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -30,6 +39,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Tag {
     Id3Tag { inner: Id3InternalTag },
     VorbisFlacTag { inner: FlacInternalTag },
+    Mp4Tag { inner: Mp4InternalTag },
 }
 
 impl Tag {
@@ -49,6 +59,10 @@ impl Tag {
                 let inner = FlacInternalTag::read_from_path(path)?;
                 Ok(Self::VorbisFlacTag { inner })
             }
+            "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
+                let inner = Mp4InternalTag::read_from_path(path)?;
+                Ok(Self::Mp4Tag { inner: inner })
+            }
             _ => Err(Error::UnsupportedFormat),
         }
     }
@@ -57,6 +71,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.write_to_path(path, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => inner.write_to_path(path)?,
+            Self::Mp4Tag { inner } => inner.write_to_path(path)?,
         };
         Ok(())
     }
@@ -85,8 +100,16 @@ impl Tag {
                     .map(|pic| Picture::from(pic.clone()));
 
                 Some(Album {
-                    title: inner.get_vorbis("ALBUM")?.next()?.to_string(),
-                    artist: inner.get_vorbis("ALBUM_ARTIST")?.next()?.to_string(),
+                    title: inner.get_vorbis("ALBUM")?.next()?.into(),
+                    artist: inner.get_vorbis("ALBUM_ARTIST")?.next()?.into(),
+                    cover,
+                })
+            }
+            Self::Mp4Tag { inner } => {
+                let cover = inner.artwork().map(|pic| Picture::from(pic));
+                Some(Album {
+                    title: inner.title()?.into(),
+                    artist: inner.artist()?.into(),
                     cover,
                 })
             }
@@ -123,6 +146,18 @@ impl Tag {
                     );
                 }
             }
+            Self::Mp4Tag { inner } => {
+                inner.set_album(album.title);
+                inner.set_album_artist(album.artist);
+
+                if let Some(picture) = album.cover {
+                    let pic: Result<Mp4Picture<Vec<u8>>> = picture.into();
+                    match pic {
+                        Ok(p) => inner.set_artwork(p),
+                        Err(e) => eprintln!("{}", e),
+                    }
+                }
+            }
         }
     }
 
@@ -131,6 +166,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
+            Self::Mp4Tag { inner } => inner.title(),
         }
     }
 
@@ -138,6 +174,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.set_title(title),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("TITLE", vec![title]),
+            Self::Mp4Tag { inner } => inner.set_title(title),
         }
     }
 
@@ -152,6 +189,7 @@ impl Tag {
                     .join("; "),
             )
             .filter(|s| !s.is_empty()),
+            Self::Mp4Tag { inner } => inner.artist().map(std::string::ToString::to_string),
         }
     }
 
@@ -159,6 +197,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.set_artist(artist),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("ARTIST", vec![artist]),
+            Self::Mp4Tag { inner } => inner.set_artist(artist),
         }
     }
 
@@ -169,7 +208,15 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner
                 .get_vorbis("DATE")?
                 .next()
-                .map(|s| -> Option<Timestamp> { Timestamp::from_str(s).ok() })?,
+                .map(|s| Timestamp::from_str(s).ok())?,
+            Self::Mp4Tag { inner } => {
+                inner
+                .data()
+                .find(|data| matches!(data.0.fourcc().unwrap_or_default().0, [169, 100, 97, 121]))
+                .map(|data| -> Option<Timestamp> {
+                    Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
+                })?
+            }
         }
     }
 
@@ -181,10 +228,16 @@ impl Tag {
                 vec![format!(
                     "{:04}-{:02}-{:02}",
                     timestamp.year,
-                    timestamp.month.unwrap_or(0),
-                    timestamp.day.unwrap_or(0)
+                    timestamp.month.unwrap_or_default(),
+                    timestamp.day.unwrap_or_default()
                 )],
             ),
+            Self::Mp4Tag { inner } => inner.set_data(Mp4Fourcc([169, 100, 97, 121]), Mp4Data::Utf8(format!(
+                "{:04}-{:02}-{:02}",
+                timestamp.year,
+                timestamp.month.unwrap_or_default(),
+                timestamp.day.unwrap_or_default()
+            )))
         }
     }
 }
