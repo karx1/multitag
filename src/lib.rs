@@ -42,11 +42,11 @@ impl Tag {
             .ok_or(Error::InvalidFileExtension)?;
         match extension {
             "mp3" | "wav" | "aiff" => {
-                let inner = Id3InternalTag::read_from_path(path)?;
+                let inner = Id3InternalTag::read_from_path(path).unwrap_or_default();
                 Ok(Self::Id3Tag { inner })
             }
             "flac" => {
-                let inner = FlacInternalTag::read_from_path(path)?;
+                let inner = FlacInternalTag::read_from_path(path).unwrap_or_default();
                 Ok(Self::VorbisFlacTag { inner })
             }
             _ => Err(Error::UnsupportedFormat),
