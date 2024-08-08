@@ -1,6 +1,7 @@
 use crate::{Error, Result};
 use id3::frame::Picture as Id3Picture;
 use id3::frame::Timestamp as Id3Timestamp;
+use metaflac::block::Picture as FlacPicture;
 use std::str::FromStr;
 
 #[derive(Clone, Debug)]
@@ -25,6 +26,15 @@ impl From<Id3Picture> for Picture {
     }
 }
 
+impl From<FlacPicture> for Picture {
+    fn from(value: FlacPicture) -> Self {
+        Picture {
+            data: value.data,
+            mime_type: value.mime_type,
+        }
+    }
+}
+
 impl std::fmt::Display for Picture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -36,7 +46,7 @@ impl std::fmt::Display for Picture {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Timestamp {
     pub year: i32,
     pub month: Option<u8>,
