@@ -4,7 +4,7 @@ use id3::frame::Timestamp as Id3Timestamp;
 use metaflac::block::Picture as FlacPicture;
 use std::str::FromStr;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Album {
     pub title: String,
     pub artist: String,
