@@ -2,6 +2,8 @@ use crate::{Error, Result};
 use id3::frame::Picture as Id3Picture;
 use id3::frame::Timestamp as Id3Timestamp;
 use metaflac::block::Picture as FlacPicture;
+use mp4ameta::Img as Mp4Picture;
+use mp4ameta::ImgFmt as Mp4ImageFmt;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Default)]
@@ -32,6 +34,35 @@ impl From<FlacPicture> for Picture {
             data: value.data,
             mime_type: value.mime_type,
         }
+    }
+}
+
+impl From<Mp4Picture<&[u8]>> for Picture {
+    fn from(value: Mp4Picture<&[u8]>) -> Self {
+        Picture {
+            data: value.data.to_vec(),
+            mime_type: match value.fmt {
+                Mp4ImageFmt::Bmp => "image/bmp".into(),
+                Mp4ImageFmt::Jpeg => "image/jpeg".into(),
+                Mp4ImageFmt::Png => "image/png".into(),
+            },
+        }
+    }
+}
+
+impl From<Picture> for Result<Mp4Picture<Vec<u8>>> {
+    fn from(value: Picture) -> Self {
+        let image_fmt = match value.mime_type.as_str() {
+            "image/bmp" => Ok(Mp4ImageFmt::Bmp),
+            "image/jpeg" => Ok(Mp4ImageFmt::Jpeg),
+            "image/png" => Ok(Mp4ImageFmt::Png),
+            _ => Err(Error::UnsupportedFormat),
+        }?;
+
+        Ok(Mp4Picture {
+            fmt: image_fmt,
+            data: value.data,
+        })
     }
 }
 
