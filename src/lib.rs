@@ -1,4 +1,4 @@
-mod data;
+pub mod data;
 
 use data::*;
 use id3::Tag as Id3InternalTag;
