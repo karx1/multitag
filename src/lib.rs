@@ -52,16 +52,32 @@ impl Tag {
             .ok_or(Error::InvalidFileExtension)?;
         match extension {
             "mp3" | "wav" | "aiff" => {
-                let inner = Id3InternalTag::read_from_path(path).unwrap_or_default();
-                Ok(Self::Id3Tag { inner })
+                let res = Id3InternalTag::read_from_path(path);
+                if res
+                    .as_ref()
+                    .is_err_and(|e: &id3::Error| matches!(e.kind, id3::ErrorKind::NoTag))
+                {
+                    return Ok(Self::Id3Tag {
+                        inner: Id3InternalTag::default(),
+                    });
+                }
+                Ok(Self::Id3Tag { inner: res? })
             }
             "flac" => {
-                let inner = FlacInternalTag::read_from_path(path).unwrap_or_default();
+                let inner = FlacInternalTag::read_from_path(path)?;
                 Ok(Self::VorbisFlacTag { inner })
             }
             "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
-                let inner = Mp4InternalTag::read_from_path(path)?;
-                Ok(Self::Mp4Tag { inner })
+                let res = Mp4InternalTag::read_from_path(path);
+                if res
+                    .as_ref()
+                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoTag))
+                {
+                    return Ok(Self::Mp4Tag {
+                        inner: Mp4InternalTag::default(),
+                    });
+                }
+                Ok(Self::Mp4Tag { inner: res? })
             }
             _ => Err(Error::UnsupportedFormat),
         }
