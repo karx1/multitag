@@ -91,7 +91,9 @@ impl Tag {
         };
         Ok(())
     }
+}
 
+impl Tag {
     #[must_use]
     pub fn get_album_info(&self) -> Option<Album> {
         match self {
