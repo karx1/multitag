@@ -13,6 +13,8 @@ use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
 
+const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Given file does not have a file extension")]
@@ -268,7 +270,7 @@ impl Tag {
                 .map(|s| Timestamp::from_str(s).ok())?,
             Self::Mp4Tag { inner } => inner
                 .data()
-                .find(|data| matches!(data.0.fourcc().unwrap_or_default().0, [169, 100, 97, 121]))
+                .find(|data| matches!(data.0.fourcc().unwrap_or_default(), DATE_FOURCC))
                 .map(|data| -> Option<Timestamp> {
                     Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
                 })?,
@@ -288,7 +290,7 @@ impl Tag {
                 )],
             ),
             Self::Mp4Tag { inner } => inner.set_data(
-                Mp4Fourcc([169, 100, 97, 121]),
+                DATE_FOURCC,
                 Mp4Data::Utf8(format!(
                     "{:04}-{:02}-{:02}",
                     timestamp.year,
@@ -303,7 +305,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.remove_date_released(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
-            Self::Mp4Tag { inner } => inner.remove_data_of(&Mp4Fourcc([169, 100, 97, 121])),
+            Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
         }
     }
 }
