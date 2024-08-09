@@ -179,6 +179,29 @@ impl Tag {
         }
     }
 
+    pub fn remove_all_album_info(&mut self) {
+        match self {
+            Self::Id3Tag { inner } => {
+                inner.remove_album();
+                inner.remove_album_artist();
+                inner.remove_picture_by_type(id3::frame::PictureType::CoverFront);
+            }
+            Self::VorbisFlacTag { inner } => {
+                inner.remove_vorbis("ALBUM");
+                inner.remove_vorbis("ALBUMARTIST");
+                inner.remove_vorbis("ALBUM ARTIST");
+                inner.remove_vorbis("ALBUM_ARTIST");
+
+                inner.remove_picture_type(metaflac::block::PictureType::CoverFront);
+            }
+            Self::Mp4Tag { inner } => {
+                inner.remove_album();
+                inner.remove_album_artists();
+                inner.remove_artworks();
+            }
+        }
+    }
+
     #[must_use]
     pub fn title(&self) -> Option<&str> {
         match self {
@@ -193,6 +216,14 @@ impl Tag {
             Self::Id3Tag { inner } => inner.set_title(title),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("TITLE", vec![title]),
             Self::Mp4Tag { inner } => inner.set_title(title),
+        }
+    }
+
+    pub fn remove_title(&mut self) {
+        match self {
+            Self::Id3Tag { inner } => inner.remove_title(),
+            Self::VorbisFlacTag { inner } => inner.remove_vorbis("TITLE"),
+            Self::Mp4Tag { inner } => inner.remove_title(),
         }
     }
 
@@ -216,6 +247,14 @@ impl Tag {
             Self::Id3Tag { inner } => inner.set_artist(artist),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("ARTIST", vec![artist]),
             Self::Mp4Tag { inner } => inner.set_artist(artist),
+        }
+    }
+
+    pub fn remove_artist(&mut self) {
+        match self {
+            Self::Id3Tag { inner } => inner.remove_artist(),
+            Self::VorbisFlacTag { inner } => inner.remove_vorbis("ARTIST"),
+            Self::Mp4Tag { inner } => inner.remove_artists(),
         }
     }
 
@@ -257,6 +296,14 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )),
             ),
+        }
+    }
+
+    pub fn remove_date(&mut self) {
+        match self {
+            Self::Id3Tag { inner } => inner.remove_date_released(),
+            Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
+            Self::Mp4Tag { inner } => inner.remove_data_of(&Mp4Fourcc([169, 100, 97, 121])),
         }
     }
 }
