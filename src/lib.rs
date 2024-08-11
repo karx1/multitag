@@ -93,6 +93,27 @@ impl Tag {
         };
         Ok(())
     }
+
+    #[must_use]
+    pub fn new_empty_id3() -> Self {
+        Self::Id3Tag {
+            inner: Id3InternalTag::default(),
+        }
+    }
+
+    #[must_use]
+    pub fn new_empty_flac() -> Self {
+        Self::VorbisFlacTag {
+            inner: FlacInternalTag::default(),
+        }
+    }
+
+    #[must_use]
+    pub fn new_empty_mp4() -> Self {
+        Self::Mp4Tag {
+            inner: Mp4InternalTag::default(),
+        }
+    }
 }
 
 impl Tag {
