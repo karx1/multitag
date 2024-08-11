@@ -329,4 +329,22 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
         }
     }
+
+    pub fn copy_to(&self, other: &mut Self) {
+        if let Some(album) = self.get_album_info() {
+            other.set_album_info(album);
+        }
+
+        if let Some(title) = self.title() {
+            other.set_title(title);
+        }
+
+        if let Some(artist) = self.artist() {
+            other.set_artist(&artist);
+        }
+
+        if let Some(date) = self.date() {
+            other.set_date(date);
+        }
+    }
 }
