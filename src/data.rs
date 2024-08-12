@@ -54,8 +54,10 @@ impl From<Mp4Picture<&[u8]>> for Picture {
     }
 }
 
-impl From<Picture> for Result<Mp4Picture<Vec<u8>>> {
-    fn from(value: Picture) -> Self {
+impl TryFrom<Picture> for Mp4Picture<Vec<u8>> {
+    type Error = Error;
+
+    fn try_from(value: Picture) -> Result<Self> {
         let image_fmt = match value.mime_type.as_str() {
             "image/bmp" => Ok(Mp4ImageFmt::Bmp),
             "image/jpeg" => Ok(Mp4ImageFmt::Jpeg),

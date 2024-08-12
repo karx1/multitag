@@ -230,7 +230,7 @@ impl Tag {
                 inner.set_album_artist(album.artist);
 
                 if let Some(picture) = album.cover {
-                    let pic: Result<Mp4Picture<Vec<u8>>> = picture.into();
+                    let pic: Result<Mp4Picture<Vec<u8>>> = picture.try_into();
                     match pic {
                         Ok(p) => inner.set_artwork(p),
                         Err(e) => eprintln!("{e}"),
