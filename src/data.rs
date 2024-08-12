@@ -127,3 +127,9 @@ impl FromStr for Timestamp {
             .into())
     }
 }
+
+impl std::fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", Id3Timestamp::from(*self))
+    }
+}
