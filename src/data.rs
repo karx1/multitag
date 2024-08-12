@@ -1,3 +1,6 @@
+//! This module contains useful types for representing audio metadata information. The types in
+//! this module are typically returned by methods on [`Tag`].
+
 use crate::{Error, Result};
 use id3::frame::Picture as Id3Picture;
 use id3::frame::Timestamp as Id3Timestamp;
@@ -6,6 +9,7 @@ use mp4ameta::Img as Mp4Picture;
 use mp4ameta::ImgFmt as Mp4ImageFmt;
 use std::str::FromStr;
 
+/// Represents the album that a song is part of.
 #[derive(Clone, Debug, Default)]
 pub struct Album {
     pub title: String,
@@ -77,6 +81,7 @@ impl std::fmt::Display for Picture {
     }
 }
 
+/// Represents a date and time according to the ID3v2.4 spec.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Timestamp {
     pub year: i32,

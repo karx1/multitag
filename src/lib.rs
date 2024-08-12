@@ -152,6 +152,8 @@ impl Tag {
 }
 
 impl Tag {
+    /// Gets the album information. If the `album` or `album_artist` fields are not present in the
+    /// audio file, this method returns None.
     #[must_use]
     pub fn get_album_info(&self) -> Option<Album> {
         match self {
@@ -192,6 +194,7 @@ impl Tag {
         }
     }
 
+    /// Sets the album information of the audio track.
     pub fn set_album_info(&mut self, album: Album) {
         match self {
             Self::Id3Tag { inner } => {
@@ -237,6 +240,7 @@ impl Tag {
         }
     }
 
+    /// Removes all album infofrom the audio track.
     pub fn remove_all_album_info(&mut self) {
         match self {
             Self::Id3Tag { inner } => {
@@ -260,6 +264,7 @@ impl Tag {
         }
     }
 
+    /// Gets the title.
     #[must_use]
     pub fn title(&self) -> Option<&str> {
         match self {
@@ -269,6 +274,7 @@ impl Tag {
         }
     }
 
+    /// Sets the title.
     pub fn set_title(&mut self, title: &str) {
         match self {
             Self::Id3Tag { inner } => inner.set_title(title),
@@ -277,6 +283,7 @@ impl Tag {
         }
     }
 
+    /// Removes any title fields from the file.
     pub fn remove_title(&mut self) {
         match self {
             Self::Id3Tag { inner } => inner.remove_title(),
@@ -285,6 +292,7 @@ impl Tag {
         }
     }
 
+    /// Gets the artist (note: NOT the album artist!)
     #[must_use]
     pub fn artist(&self) -> Option<String> {
         match self {
@@ -300,6 +308,7 @@ impl Tag {
         }
     }
 
+    /// Sets the artist (note: NOT the album artist!)
     pub fn set_artist(&mut self, artist: &str) {
         match self {
             Self::Id3Tag { inner } => inner.set_artist(artist),
@@ -308,6 +317,7 @@ impl Tag {
         }
     }
 
+    /// Removes the artist (note: NOT the album artist!)
     pub fn remove_artist(&mut self) {
         match self {
             Self::Id3Tag { inner } => inner.remove_artist(),
@@ -316,6 +326,9 @@ impl Tag {
         }
     }
 
+    /// Gets the date
+    /// # Format-specific
+    /// In id3, this method corresponds to the `date_released` field.
     #[must_use]
     pub fn date(&self) -> Option<Timestamp> {
         match self {
@@ -333,6 +346,9 @@ impl Tag {
         }
     }
 
+    /// Sets the date
+    /// # Format-specific
+    /// In id3, this method corresponds to the `date_released` field.
     pub fn set_date(&mut self, timestamp: Timestamp) {
         match self {
             Self::Id3Tag { inner } => inner.set_date_released(timestamp.into()),
@@ -357,6 +373,9 @@ impl Tag {
         }
     }
 
+    /// Removes the date
+    /// # Format-specific
+    /// In id3, this method corresponds to the `date_released` field.
     pub fn remove_date(&mut self) {
         match self {
             Self::Id3Tag { inner } => inner.remove_date_released(),
@@ -365,6 +384,8 @@ impl Tag {
         }
     }
 
+    /// Copies the information of this [`Tag`] to another. The target [`Tag`] can be any of the
+    /// supported formats.
     pub fn copy_to(&self, other: &mut Self) {
         if let Some(album) = self.get_album_info() {
             other.set_album_info(album);
