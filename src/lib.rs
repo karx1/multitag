@@ -1,3 +1,8 @@
+//! `multitag` is a crate for reading and writing audio metadata of various formats
+//!
+//! We currently support reading and writing metadata to mp3, wav, aiff, flac, and mp4/m4a/...
+//! files, with support for more formats on the way.
+
 pub mod data;
 
 use data::*;
@@ -15,28 +20,41 @@ use thiserror::Error;
 
 const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
 
+/// Error type.
+///
+/// Describes various errors that this crate could produce.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// A file does not have a file extension.
     #[error("Given file does not have a file extension")]
     NoFileExtension,
+    /// The file *extension* does not contain valid unicode
     #[error("File extension must be valid unicode")]
     InvalidFileExtension,
+    /// The format of the specified file is not currently supported by this crate.
     #[error("Unsupported file format")]
     UnsupportedFormat,
+    /// Wrapper around an [`id3::Error`]. See there for more info.
     #[error("{0}")]
     Id3Error(#[from] id3::Error),
+    /// Wrapper around a [`metaflac::Error`]. See there for more info.
     #[error("{0}")]
     FlacError(#[from] metaflac::Error),
+    /// Wrapper around a [`mp4ameta::Error`]. See there for more info.
     #[error("{0}")]
     Mp4Error(#[from] mp4ameta::Error),
+    /// Unable to parse a [`Timestamp`] from a string.
     #[error("Unable to parse timestamp from string")]
     TimestampParseError,
+    /// Specified cover image is not of a valid mime type.
+    /// Supported types are: bmp, jpg, png.
     #[error("given cover image data is not of valid type (bmp, jpeg, png)")]
     InvalidImageFormat,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// An object containing tags of one of the supported formats.
 #[derive(Debug)]
 pub enum Tag {
     Id3Tag { inner: Id3InternalTag },
@@ -45,6 +63,17 @@ pub enum Tag {
 }
 
 impl Tag {
+    /// Attempts to read a set of tags from the given path.
+    ///
+    /// # Errors
+    /// This function could error if the given path has a file extension which contains invalid
+    /// unicode or if the given path does not have a file extension at all.
+    ///
+    /// This function could also error if the given path has a valid extension but the extension is
+    /// not among the types supported by this crate.
+    ///
+    /// Lastly, an error will be raised if the file type is supported but the reading the tags fails for some
+    /// reason other than missing tags.
     pub fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
         let extension = path
@@ -85,6 +114,9 @@ impl Tag {
         }
     }
 
+    /// Attempts to write the tags to the indicated path.
+    /// # Errors
+    /// This function will error if writing the tags fails in any way.
     pub fn write_to_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         match self {
             Self::Id3Tag { inner } => inner.write_to_path(path, id3::Version::Id3v24)?,
@@ -94,6 +126,7 @@ impl Tag {
         Ok(())
     }
 
+    /// Creates an empty set of tags in the ID3 format.
     #[must_use]
     pub fn new_empty_id3() -> Self {
         Self::Id3Tag {
@@ -101,6 +134,7 @@ impl Tag {
         }
     }
 
+    /// Creates an empty set of tags in the FLAC format.
     #[must_use]
     pub fn new_empty_flac() -> Self {
         Self::VorbisFlacTag {
@@ -108,6 +142,7 @@ impl Tag {
         }
     }
 
+    /// Creates an empty set of tags in the MP4 format.
     #[must_use]
     pub fn new_empty_mp4() -> Self {
         Self::Mp4Tag {
