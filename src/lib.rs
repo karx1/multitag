@@ -12,7 +12,6 @@ use metaflac::Tag as FlacInternalTag;
 use mp4ameta::Data as Mp4Data;
 use mp4ameta::Fourcc as Mp4Fourcc;
 use mp4ameta::Ident as Mp4Ident;
-use mp4ameta::Img as Mp4Picture;
 use mp4ameta::Tag as Mp4InternalTag;
 use std::path::Path;
 use std::str::FromStr;
@@ -195,7 +194,10 @@ impl Tag {
     }
 
     /// Sets the album information of the audio track.
-    pub fn set_album_info(&mut self, album: Album) {
+    /// # Errors
+    /// This function will error if `album.cover` has an invalid or unsupported MIME type.
+    /// Supported MIME types are: `image/bmp`, `image/jpeg`, `image/png`
+    pub fn set_album_info(&mut self, album: Album) -> Result<()> {
         match self {
             Self::Id3Tag { inner } => {
                 inner.set_album(album.title);
@@ -230,14 +232,11 @@ impl Tag {
                 inner.set_album_artist(album.artist);
 
                 if let Some(picture) = album.cover {
-                    let pic: Result<Mp4Picture<Vec<u8>>> = picture.try_into();
-                    match pic {
-                        Ok(p) => inner.set_artwork(p),
-                        Err(e) => eprintln!("{e}"),
-                    }
+                    inner.set_artwork(picture.try_into()?);
                 }
             }
         }
+        Ok(())
     }
 
     /// Removes all album infofrom the audio track.
@@ -388,7 +387,8 @@ impl Tag {
     /// supported formats.
     pub fn copy_to(&self, other: &mut Self) {
         if let Some(album) = self.get_album_info() {
-            other.set_album_info(album);
+            // This should be ok since if the tag was read then the mime type should already be valid
+            let _ = other.set_album_info(album);
         }
 
         if let Some(title) = self.title() {
