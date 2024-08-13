@@ -58,7 +58,6 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An object containing tags of one of the supported formats.
-#[derive(Debug)]
 pub enum Tag {
     Id3Tag { inner: Id3InternalTag },
     VorbisFlacTag { inner: FlacInternalTag },
