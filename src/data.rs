@@ -1,5 +1,5 @@
 //! This module contains useful types for representing audio metadata information. The types in
-//! this module are typically returned by methods on [`Tag`].
+//! this module are typically returned by methods on [`Tag`](crate::Tag).
 
 use crate::{Error, Result};
 use id3::frame::Picture as Id3Picture;
@@ -25,7 +25,7 @@ pub struct Picture {
 
 impl From<Id3Picture> for Picture {
     fn from(value: Id3Picture) -> Self {
-        Picture {
+        Self {
             data: value.data,
             mime_type: value.mime_type,
         }
@@ -34,7 +34,7 @@ impl From<Id3Picture> for Picture {
 
 impl From<FlacPicture> for Picture {
     fn from(value: FlacPicture) -> Self {
-        Picture {
+        Self {
             data: value.data,
             mime_type: value.mime_type,
         }
@@ -43,7 +43,7 @@ impl From<FlacPicture> for Picture {
 
 impl From<Mp4Picture<&[u8]>> for Picture {
     fn from(value: Mp4Picture<&[u8]>) -> Self {
-        Picture {
+        Self {
             data: value.data.to_vec(),
             mime_type: match value.fmt {
                 Mp4ImageFmt::Bmp => "image/bmp".into(),
@@ -65,7 +65,7 @@ impl TryFrom<Picture> for Mp4Picture<Vec<u8>> {
             _ => Err(Error::UnsupportedImageFormat),
         }?;
 
-        Ok(Mp4Picture {
+        Ok(Self {
             fmt: image_fmt,
             data: value.data,
         })
@@ -96,7 +96,7 @@ pub struct Timestamp {
 
 impl From<Id3Timestamp> for Timestamp {
     fn from(value: Id3Timestamp) -> Self {
-        Timestamp {
+        Self {
             year: value.year,
             month: value.month,
             day: value.day,
@@ -109,7 +109,7 @@ impl From<Id3Timestamp> for Timestamp {
 
 impl From<Timestamp> for Id3Timestamp {
     fn from(value: Timestamp) -> Self {
-        Id3Timestamp {
+        Self {
             year: value.year,
             month: value.month,
             day: value.day,

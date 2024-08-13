@@ -23,6 +23,7 @@ const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
 ///
 /// Describes various errors that this crate could produce.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// A file does not have a file extension.
     #[error("Given file does not have a file extension")]
