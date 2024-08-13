@@ -62,7 +62,7 @@ impl TryFrom<Picture> for Mp4Picture<Vec<u8>> {
             "image/bmp" => Ok(Mp4ImageFmt::Bmp),
             "image/jpeg" => Ok(Mp4ImageFmt::Jpeg),
             "image/png" => Ok(Mp4ImageFmt::Png),
-            _ => Err(Error::UnsupportedFormat),
+            _ => Err(Error::UnsupportedImageFormat),
         }?;
 
         Ok(Mp4Picture {

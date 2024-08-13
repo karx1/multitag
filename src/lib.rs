@@ -30,9 +30,12 @@ pub enum Error {
     /// The file *extension* does not contain valid unicode
     #[error("File extension must be valid unicode")]
     InvalidFileExtension,
-    /// The format of the specified file is not currently supported by this crate.
-    #[error("Unsupported file format")]
-    UnsupportedFormat,
+    /// The format of the specified audio file is not currently supported by this crate.
+    #[error("Unsupported audio format")]
+    UnsupportedAudioFormat,
+    /// The format of the specified image file is not currently supported by this crate.
+    #[error("Unsupported image format")]
+    UnsupportedImageFormat,
     /// Wrapper around an [`id3::Error`]. See there for more info.
     #[error("{0}")]
     Id3Error(#[from] id3::Error),
@@ -109,7 +112,7 @@ impl Tag {
                 }
                 Ok(Self::Mp4Tag { inner: res? })
             }
-            _ => Err(Error::UnsupportedFormat),
+            _ => Err(Error::UnsupportedAudioFormat),
         }
     }
 
