@@ -13,6 +13,7 @@ use mp4ameta::Data as Mp4Data;
 use mp4ameta::Fourcc as Mp4Fourcc;
 use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
+use opusmeta::Tag as OpusInternalTag;
 use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
@@ -34,9 +35,6 @@ pub enum Error {
     /// The format of the specified audio file is not currently supported by this crate.
     #[error("Unsupported audio format")]
     UnsupportedAudioFormat,
-    /// The format of the specified image file is not currently supported by this crate.
-    #[error("Unsupported image format")]
-    UnsupportedImageFormat,
     /// Wrapper around an [`id3::Error`]. See there for more info.
     #[error("{0}")]
     Id3Error(#[from] id3::Error),
@@ -46,12 +44,15 @@ pub enum Error {
     /// Wrapper around a [`mp4ameta::Error`]. See there for more info.
     #[error("{0}")]
     Mp4Error(#[from] mp4ameta::Error),
+    /// Wrapper around a [`opusmeta::Error`]. See there for more info.
+    #[error("{0}")]
+    OpusError(#[from] opusmeta::Error),
     /// Unable to parse a [`Timestamp`] from a string.
     #[error("Unable to parse timestamp from string")]
     TimestampParseError,
     /// Specified cover image is not of a valid mime type.
     /// Supported types are: bmp, jpg, png.
-    #[error("given cover image data is not of valid type (bmp, jpeg, png)")]
+    #[error("Given cover image data is not of valid type (bmp, jpeg, png)")]
     InvalidImageFormat,
 }
 
@@ -62,6 +63,7 @@ pub enum Tag {
     Id3Tag { inner: Id3InternalTag },
     VorbisFlacTag { inner: FlacInternalTag },
     Mp4Tag { inner: Mp4InternalTag },
+    OpusTag { inner: OpusInternalTag },
 }
 
 impl Tag {
@@ -112,6 +114,10 @@ impl Tag {
                 }
                 Ok(Self::Mp4Tag { inner: res? })
             }
+            "opus" => {
+                let inner = OpusInternalTag::read_from_path(path)?;
+                Ok(Self::OpusTag { inner })
+            }
             _ => Err(Error::UnsupportedAudioFormat),
         }
     }
@@ -124,6 +130,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.write_to_path(path, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => inner.write_to_path(path)?,
             Self::Mp4Tag { inner } => inner.write_to_path(path)?,
+            Self::OpusTag { inner } => inner.write_to_path(path)?,
         };
         Ok(())
     }
@@ -193,6 +200,17 @@ impl Tag {
                     cover,
                 })
             }
+            Self::OpusTag { inner } => {
+                let cover = inner
+                    .get_picture_type(opusmeta::picture::PictureType::CoverFront)
+                    .map(Picture::from);
+
+                Some(Album {
+                    title: inner.get("ALBUM".into())?.first()?.clone(),
+                    artist: inner.get("ALBUM_ARTIST".into())?.first()?.clone(),
+                    cover,
+                })
+            }
         }
     }
 
@@ -238,6 +256,24 @@ impl Tag {
                     inner.set_artwork(picture.try_into()?);
                 }
             }
+            Self::OpusTag { inner } => {
+                inner.add_one("ALBUM".into(), album.title);
+                inner.add_one("ALBUMARTIST".into(), album.artist.clone());
+                inner.add_one("ALBUM_ARTIST".into(), album.artist.clone());
+
+                let opus_pic =
+                    album
+                        .cover
+                        .map(|pic| pic.into())
+                        .map(|mut pic: opusmeta::picture::Picture| {
+                            pic.picture_type = opusmeta::picture::PictureType::CoverFront;
+                            pic
+                        });
+
+                if let Some(pic) = opus_pic {
+                    inner.add_picture(&pic)?;
+                }
+            }
         }
         Ok(())
     }
@@ -263,6 +299,13 @@ impl Tag {
                 inner.remove_album_artists();
                 inner.remove_artworks();
             }
+            Self::OpusTag { inner } => {
+                inner.remove_entries("ALBUM".into());
+                inner.remove_entries("ALBUMARTIST".into());
+                inner.remove_entries("ALBUM_ARTIST".into());
+
+                inner.remove_picture_type(opusmeta::picture::PictureType::CoverFront);
+            }
         }
     }
 
@@ -273,6 +316,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
+            Self::OpusTag { inner } => inner.get("TITLE".into())?.first().map(|x| x.as_str()),
         }
     }
 
@@ -282,6 +326,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.set_title(title),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("TITLE", vec![title]),
             Self::Mp4Tag { inner } => inner.set_title(title),
+            Self::OpusTag { inner } => inner.add_one("TITLE".into(), title.into()),
         }
     }
 
@@ -291,10 +336,14 @@ impl Tag {
             Self::Id3Tag { inner } => inner.remove_title(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("TITLE"),
             Self::Mp4Tag { inner } => inner.remove_title(),
+            Self::OpusTag { inner } => {
+                inner.remove_entries("TITLE".into());
+            }
         }
     }
 
     /// Gets the artist (note: NOT the album artist!)
+    /// If multiple ARTIST tags are present, they will be joined with a `; `
     #[must_use]
     pub fn artist(&self) -> Option<String> {
         match self {
@@ -307,6 +356,7 @@ impl Tag {
             )
             .filter(|s| !s.is_empty()),
             Self::Mp4Tag { inner } => inner.artist().map(std::string::ToString::to_string),
+            Self::OpusTag { inner } => Some(inner.get("ARTIST".into())?.join("; ")),
         }
     }
 
@@ -316,6 +366,10 @@ impl Tag {
             Self::Id3Tag { inner } => inner.set_artist(artist),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("ARTIST", vec![artist]),
             Self::Mp4Tag { inner } => inner.set_artist(artist),
+            Self::OpusTag { inner } => {
+                inner.remove_entries("ARTIST".into());
+                inner.add_one("ARTIST".into(), artist.into());
+            }
         }
     }
 
@@ -325,6 +379,9 @@ impl Tag {
             Self::Id3Tag { inner } => inner.remove_artist(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("ARTIST"),
             Self::Mp4Tag { inner } => inner.remove_artists(),
+            Self::OpusTag { inner } => {
+                inner.remove_entries("ARTIST".into());
+            }
         }
     }
 
@@ -338,13 +395,19 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner
                 .get_vorbis("DATE")?
                 .next()
-                .map(|s| Timestamp::from_str(s).ok())?,
+                .map(|s| Timestamp::from_str(s).ok())
+                .flatten(),
             Self::Mp4Tag { inner } => inner
                 .data()
                 .find(|data| matches!(data.0.fourcc().unwrap_or_default(), DATE_FOURCC))
                 .map(|data| -> Option<Timestamp> {
                     Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
                 })?,
+            Self::OpusTag { inner } => inner
+                .get("DATE".into())?
+                .first()
+                .map(|s| Timestamp::from_str(s).ok())
+                .flatten(),
         }
     }
 
@@ -372,6 +435,18 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )),
             ),
+            Self::OpusTag { inner } => {
+                inner.remove_entries("DATE".into());
+                inner.add_one(
+                    "DATE".into(),
+                    format!(
+                        "{:04}-{:02}-{:02}",
+                        timestamp.year,
+                        timestamp.month.unwrap_or_default(),
+                        timestamp.day.unwrap_or_default()
+                    ),
+                );
+            }
         }
     }
 
@@ -383,6 +458,9 @@ impl Tag {
             Self::Id3Tag { inner } => inner.remove_date_released(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
             Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
+            Self::OpusTag { inner } => {
+                inner.remove_entries("DATE".into());
+            }
         }
     }
 

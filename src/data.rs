@@ -7,6 +7,7 @@ use id3::frame::Timestamp as Id3Timestamp;
 use metaflac::block::Picture as FlacPicture;
 use mp4ameta::Img as Mp4Picture;
 use mp4ameta::ImgFmt as Mp4ImageFmt;
+use opusmeta::picture::Picture as OpusPicture;
 use std::str::FromStr;
 
 /// Represents the album that a song is part of.
@@ -62,13 +63,32 @@ impl TryFrom<Picture> for Mp4Picture<Vec<u8>> {
             "image/bmp" => Ok(Mp4ImageFmt::Bmp),
             "image/jpeg" => Ok(Mp4ImageFmt::Jpeg),
             "image/png" => Ok(Mp4ImageFmt::Png),
-            _ => Err(Error::UnsupportedImageFormat),
+            _ => Err(Error::InvalidImageFormat),
         }?;
 
         Ok(Self {
             fmt: image_fmt,
             data: value.data,
         })
+    }
+}
+
+impl From<OpusPicture> for Picture {
+    fn from(value: OpusPicture) -> Self {
+        Self {
+            data: value.data,
+            mime_type: value.mime_type,
+        }
+    }
+}
+
+impl From<Picture> for OpusPicture {
+    fn from(value: Picture) -> Self {
+        let mut picture = OpusPicture::new();
+        picture.mime_type = value.mime_type;
+        picture.data = value.data;
+
+        picture
     }
 }
 
