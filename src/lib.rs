@@ -261,14 +261,12 @@ impl Tag {
                 inner.add_one("ALBUMARTIST".into(), album.artist.clone());
                 inner.add_one("ALBUM_ARTIST".into(), album.artist.clone());
 
-                let opus_pic =
-                    album
-                        .cover
-                        .map(|pic| pic.into())
-                        .map(|mut pic: opusmeta::picture::Picture| {
-                            pic.picture_type = opusmeta::picture::PictureType::CoverFront;
-                            pic
-                        });
+                let opus_pic = album.cover.map(std::convert::Into::into).map(
+                    |mut pic: opusmeta::picture::Picture| {
+                        pic.picture_type = opusmeta::picture::PictureType::CoverFront;
+                        pic
+                    },
+                );
 
                 if let Some(pic) = opus_pic {
                     inner.add_picture(&pic)?;
@@ -304,7 +302,7 @@ impl Tag {
                 inner.remove_entries("ALBUMARTIST".into());
                 inner.remove_entries("ALBUM_ARTIST".into());
 
-                inner.remove_picture_type(opusmeta::picture::PictureType::CoverFront);
+                let _ = inner.remove_picture_type(opusmeta::picture::PictureType::CoverFront);
             }
         }
     }
@@ -316,7 +314,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
-            Self::OpusTag { inner } => inner.get("TITLE".into())?.first().map(|x| x.as_str()),
+            Self::OpusTag { inner } => inner.get("TITLE".into())?.first().map(String::as_str),
         }
     }
 
@@ -395,8 +393,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner
                 .get_vorbis("DATE")?
                 .next()
-                .map(|s| Timestamp::from_str(s).ok())
-                .flatten(),
+                .and_then(|s| Timestamp::from_str(s).ok()),
             Self::Mp4Tag { inner } => inner
                 .data()
                 .find(|data| matches!(data.0.fourcc().unwrap_or_default(), DATE_FOURCC))
@@ -406,8 +403,7 @@ impl Tag {
             Self::OpusTag { inner } => inner
                 .get("DATE".into())?
                 .first()
-                .map(|s| Timestamp::from_str(s).ok())
-                .flatten(),
+                .and_then(|s| Timestamp::from_str(s).ok()),
         }
     }
 
