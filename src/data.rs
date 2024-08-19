@@ -13,8 +13,8 @@ use std::str::FromStr;
 /// Represents the album that a song is part of.
 #[derive(Clone, Debug, Default)]
 pub struct Album {
-    pub title: String,
-    pub artist: String,
+    pub title: Option<String>,
+    pub artist: Option<String>,
     pub cover: Option<Picture>,
 }
 

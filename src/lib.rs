@@ -14,6 +14,7 @@ use mp4ameta::Fourcc as Mp4Fourcc;
 use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
 use opusmeta::Tag as OpusInternalTag;
+use std::convert::Into;
 use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
@@ -173,8 +174,8 @@ impl Tag {
                     .map(|pic| Picture::from(pic.clone()));
 
                 Some(Album {
-                    title: inner.album()?.into(),
-                    artist: inner.album_artist()?.into(),
+                    title: inner.album().map(std::convert::Into::into),
+                    artist: inner.album_artist().map(std::convert::Into::into),
                     cover,
                 })
             }
@@ -187,16 +188,22 @@ impl Tag {
                     .map(|pic| Picture::from(pic.clone()));
 
                 Some(Album {
-                    title: inner.get_vorbis("ALBUM")?.next()?.into(),
-                    artist: inner.get_vorbis("ALBUM_ARTIST")?.next()?.into(),
+                    title: inner
+                        .get_vorbis("ALBUM")
+                        .and_then(|mut v| v.next())
+                        .map(std::convert::Into::into),
+                    artist: inner
+                        .get_vorbis("ALBUM_ARTIST")
+                        .and_then(|mut v| v.next())
+                        .map(std::convert::Into::into),
                     cover,
                 })
             }
             Self::Mp4Tag { inner } => {
                 let cover = inner.artwork().map(Picture::from);
                 Some(Album {
-                    title: inner.title()?.into(),
-                    artist: inner.artist()?.into(),
+                    title: inner.album().map(std::convert::Into::into),
+                    artist: inner.album_artist().map(Into::into),
                     cover,
                 })
             }
@@ -206,8 +213,14 @@ impl Tag {
                     .map(Picture::from);
 
                 Some(Album {
-                    title: inner.get("ALBUM".into())?.first()?.clone(),
-                    artist: inner.get("ALBUM_ARTIST".into())?.first()?.clone(),
+                    title: inner
+                        .get("ALBUM".into())
+                        .and_then(|v| v.first())
+                        .map(Into::into),
+                    artist: inner
+                        .get("ALBUM_ARTIST".into())
+                        .and_then(|v| v.first())
+                        .map(Into::into),
                     cover,
                 })
             }
@@ -221,8 +234,12 @@ impl Tag {
     pub fn set_album_info(&mut self, album: Album) -> Result<()> {
         match self {
             Self::Id3Tag { inner } => {
-                inner.set_album(album.title);
-                inner.set_album_artist(album.artist);
+                if let Some(title) = album.title {
+                    inner.set_album(title);
+                }
+                if let Some(album_artist) = album.artist {
+                    inner.set_album_artist(album_artist);
+                }
 
                 if let Some(pic) = album.cover {
                     inner.add_frame(id3::frame::Picture {
@@ -234,10 +251,14 @@ impl Tag {
                 }
             }
             Self::VorbisFlacTag { inner } => {
-                inner.set_vorbis("ALBUM", vec![album.title]);
-                inner.set_vorbis("ALBUMARTIST", vec![&album.artist]);
-                inner.set_vorbis("ALBUM ARTIST", vec![&album.artist]);
-                inner.set_vorbis("ALBUM_ARTIST", vec![&album.artist]);
+                if let Some(title) = album.title {
+                    inner.set_vorbis("ALBUM", vec![title]);
+                }
+                if let Some(album_artist) = album.artist {
+                    inner.set_vorbis("ALBUMARTIST", vec![&album_artist]);
+                    inner.set_vorbis("ALBUM ARTIST", vec![&album_artist]);
+                    inner.set_vorbis("ALBUM_ARTIST", vec![&album_artist]);
+                }
 
                 if let Some(picture) = album.cover {
                     inner.remove_picture_type(metaflac::block::PictureType::CoverFront);
@@ -249,17 +270,25 @@ impl Tag {
                 }
             }
             Self::Mp4Tag { inner } => {
-                inner.set_album(album.title);
-                inner.set_album_artist(album.artist);
+                if let Some(title) = album.title {
+                    inner.set_album(title);
+                }
+                if let Some(album_artist) = album.artist {
+                    inner.set_album_artist(album_artist);
+                }
 
                 if let Some(picture) = album.cover {
                     inner.set_artwork(picture.try_into()?);
                 }
             }
             Self::OpusTag { inner } => {
-                inner.add_one("ALBUM".into(), album.title);
-                inner.add_one("ALBUMARTIST".into(), album.artist.clone());
-                inner.add_one("ALBUM_ARTIST".into(), album.artist.clone());
+                if let Some(title) = album.title {
+                    inner.add_one("ALBUM".into(), title);
+                }
+                if let Some(album_artist) = album.artist {
+                    inner.add_one("ALBUMARTIST".into(), album_artist.clone());
+                    inner.add_one("ALBUM_ARTIST".into(), album_artist);
+                }
 
                 let opus_pic = album.cover.map(std::convert::Into::into).map(
                     |mut pic: opusmeta::picture::Picture| {
