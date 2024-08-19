@@ -1,10 +1,11 @@
 [package]
 name = "multitag"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "A crate for reading and writing music metadata in a variety of formats"
 license = "MIT"
 repository = "https://github.com/karx1/multitag"
+homepage = "https://karx.xyz/projects/multitag"
 readme = "README.md"
 
 [dependencies]
