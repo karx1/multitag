@@ -1,6 +1,6 @@
 [package]
 name = "multitag"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "A crate for reading and writing music metadata in a variety of formats"
 license = "MIT"
