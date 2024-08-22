@@ -213,14 +213,8 @@ impl Tag {
                     .map(Picture::from);
 
                 Some(Album {
-                    title: inner
-                        .get("ALBUM".into())
-                        .and_then(|v| v.first())
-                        .map(Into::into),
-                    artist: inner
-                        .get("ALBUM_ARTIST".into())
-                        .and_then(|v| v.first())
-                        .map(Into::into),
+                    title: inner.get_one("ALBUM".into()).map(Into::into),
+                    artist: inner.get_one("ALBUM_ARTIST".into()).map(Into::into),
                     cover,
                 })
             }
@@ -343,7 +337,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
-            Self::OpusTag { inner } => inner.get("TITLE".into())?.first().map(String::as_str),
+            Self::OpusTag { inner } => inner.get_one("TITLE".into()).map(String::as_str),
         }
     }
 
@@ -430,8 +424,7 @@ impl Tag {
                     Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
                 })?,
             Self::OpusTag { inner } => inner
-                .get("DATE".into())?
-                .first()
+                .get_one("DATE".into())
                 .and_then(|s| Timestamp::from_str(s).ok()),
         }
     }
