@@ -212,9 +212,14 @@ impl Tag {
                     .get_picture_type(opusmeta::picture::PictureType::CoverFront)
                     .map(Picture::from);
 
+                let artist = inner
+                    .get_one("ALBUM_ARTIST".into())
+                    .or_else(|| inner.get_one("ALBUMARTIST".into()))
+                    .map(Into::into);
+
                 Some(Album {
                     title: inner.get_one("ALBUM".into()).map(Into::into),
-                    artist: inner.get_one("ALBUM_ARTIST".into()).map(Into::into),
+                    artist,
                     cover,
                 })
             }
