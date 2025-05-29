@@ -20,6 +20,7 @@ fn main() {
 
     let cursor = Cursor::new(data);
     // You can also just pass in f instead of creating a cursor since Files are Read + Seek
-    let tag = Tag::read_from(path, cursor).unwrap();
+    let extension = path.extension().unwrap().to_str().unwrap();
+    let tag = Tag::read_from(extension, cursor).unwrap();
     println!("{:#?}", tag.title());
 }

@@ -15,6 +15,7 @@ use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
 use opusmeta::Tag as OpusInternalTag;
 use std::convert::Into;
+use std::fs::OpenOptions;
 use std::io::{Read, Seek};
 use std::path::Path;
 use std::str::FromStr;
@@ -56,6 +57,9 @@ pub enum Error {
     /// Supported types are: bmp, jpg, png.
     #[error("Given cover image data is not of valid type (bmp, jpeg, png)")]
     InvalidImageFormat,
+    /// An unspecified I/O error occurred.
+    #[error("An I/O error occurred. Please see the contained io::Error for more info.")]
+    IoError(#[from] std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -87,45 +91,14 @@ impl Tag {
             .ok_or(Error::NoFileExtension)?
             .to_str()
             .ok_or(Error::InvalidFileExtension)?;
-        match extension {
-            "mp3" | "wav" | "aiff" => {
-                let res = Id3InternalTag::read_from_path(path);
-                if res
-                    .as_ref()
-                    .is_err_and(|e: &id3::Error| matches!(e.kind, id3::ErrorKind::NoTag))
-                {
-                    return Ok(Self::Id3Tag {
-                        inner: Id3InternalTag::default(),
-                    });
-                }
-                Ok(Self::Id3Tag { inner: res? })
-            }
-            "flac" => {
-                let inner = FlacInternalTag::read_from_path(path)?;
-                Ok(Self::VorbisFlacTag { inner })
-            }
-            "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
-                let res = Mp4InternalTag::read_from_path(path);
-                if res
-                    .as_ref()
-                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoFtyp))
-                {
-                    return Ok(Self::Mp4Tag {
-                        inner: Mp4InternalTag::default(),
-                    });
-                }
-                Ok(Self::Mp4Tag { inner: res? })
-            }
-            "opus" => {
-                let inner = OpusInternalTag::read_from_path(path)?;
-                Ok(Self::OpusTag { inner })
-            }
-            _ => Err(Error::UnsupportedAudioFormat),
-        }
+
+        let file = OpenOptions::new().read(true).open(path)?;
+        Tag::read_from(extension, file)
     }
 
     /// Attempts to read a set of tags from the given reader.
-    /// The filename is necessary to determine which backend to use to decode the tags.
+    /// The extension is necessary to determine which backend to use to decode the tags.
+    /// `extension` must be one of `[mp3, wav, aiff, flac, mp4, m4a, m4p, m4b, m4r, m4v, opus]`
     ///
     /// # Errors
     /// This function can error if the given extension is not supported by this crate.
@@ -134,15 +107,7 @@ impl Tag {
     /// reason other than missing tags.
     /// This could be, for example, that the given reader ended too early or that the tags were
     /// encoded improperly. Please inspect the debug output of the error for more information.
-    pub fn read_from<P: AsRef<Path>, R: Read + Seek>(filename: P, mut f_in: R) -> Result<Self> {
-        // TODO: possibly look at automatically detecting the extension type?
-        let path = filename.as_ref();
-        let extension = path
-            .extension()
-            .ok_or(Error::NoFileExtension)?
-            .to_str()
-            .ok_or(Error::InvalidFileExtension)?;
-
+    pub fn read_from<R: Read + Seek>(extension: &str, mut f_in: R) -> Result<Self> {
         match extension {
             "mp3" | "wav" | "aiff" => {
                 let res = Id3InternalTag::read_from2(f_in);
