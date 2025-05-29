@@ -197,6 +197,35 @@ impl Tag {
         Ok(())
     }
 
+    pub fn write_to_vec(&mut self, vec: &mut Vec<u8>) -> Result<()> {
+        // we have to clone the vec because id3 and mp4ameta don't implement their traits for
+        // Cursor<&mut Vec<u8>>, only Cursor<Vec<u8>>
+        let cloned = vec.clone();
+        let mut cursor = Cursor::new(cloned);
+
+        match self {
+            Self::Id3Tag { inner } => inner.write_to_file(&mut cursor, id3::Version::Id3v24)?,
+            Self::VorbisFlacTag { inner } => {
+                // TODO: Do this
+                let mut data: Vec<u8> = Vec::new();
+                let mut other_cursor = Cursor::new(&mut data);
+
+                let _ = FlacInternalTag::read_from(&mut cursor)?;
+
+                inner.write_to(&mut other_cursor)?; // write our tags
+                std::io::copy(&mut cursor, &mut other_cursor)?; // copy the rest of the data
+
+                cursor.rewind()?; // rewind to the beginning of the cursor
+                cursor.write_all(&data)?;
+            }
+            Self::Mp4Tag { inner } => inner.write_to(&mut cursor)?,
+            Self::OpusTag { inner } => inner.write_to(&mut cursor)?,
+        }
+
+        *vec = cursor.into_inner();
+        Ok(())
+    }
+
     /// Creates an empty set of tags in the ID3 format.
     #[must_use]
     pub fn new_empty_id3() -> Self {
