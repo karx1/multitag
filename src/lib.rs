@@ -108,7 +108,7 @@ impl Tag {
                 let res = Mp4InternalTag::read_from_path(path);
                 if res
                     .as_ref()
-                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoTag))
+                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoFtyp))
                 {
                     return Ok(Self::Mp4Tag {
                         inner: Mp4InternalTag::default(),
@@ -164,7 +164,7 @@ impl Tag {
                 let res = Mp4InternalTag::read_from(&mut f_in);
                 if res
                     .as_ref()
-                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoTag))
+                    .is_err_and(|e: &mp4ameta::Error| matches!(e.kind, mp4ameta::ErrorKind::NoFtyp))
                 {
                     return Ok(Self::Mp4Tag {
                         inner: Mp4InternalTag::default(),
