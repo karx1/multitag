@@ -216,6 +216,14 @@ impl Tag {
             inner: Mp4InternalTag::default(),
         }
     }
+
+    /// Creates an empty set of tags in the Opus format.
+    #[must_use]
+    pub fn new_empty_opus() -> Self {
+        Self::OpusTag {
+            inner: OpusInternalTag::default(),
+        }
+    }
 }
 
 impl Tag {
