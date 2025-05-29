@@ -15,8 +15,9 @@ use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
 use opusmeta::Tag as OpusInternalTag;
 use std::convert::Into;
-use std::fs::OpenOptions;
-use std::io::{Read, Seek};
+use std::fs::{File, OpenOptions};
+use std::io::Cursor;
+use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
@@ -155,6 +156,44 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.write_to_path(path)?,
             Self::OpusTag { inner } => inner.write_to_path(path)?,
         }
+        Ok(())
+    }
+
+    /// Write to a file. The file should already contain valid data of the correct type (e.g. the
+    /// file should already contain an opus stream in order to correctly write opus tags).
+    ///
+    /// The file's cursor should be at the beginning of the file, and it should be opened with
+    /// read, write, and truncate modes set (See [`OpenOptions`](std::fs::OpenOptions) for more
+    /// info).
+    ///
+    /// # Errors
+    /// This method can error if writing the tags fails, or if accessing the file fails (for
+    /// example, if the modes are set wrong).
+    pub fn write_to_file(&mut self, file: &mut File) -> Result<()> {
+        match self {
+            Self::Id3Tag { inner } => inner.write_to_file(file, id3::Version::Id3v24)?,
+            Self::VorbisFlacTag { inner } => {
+                // this is needed because metaflac doesn't provide a clean way to write without a
+                // path
+                // see https://github.com/jameshurst/rust-metaflac/issues/19 for more info
+                let mut data: Vec<u8> = Vec::new();
+                let mut cursor = Cursor::new(&mut data);
+
+                // read the existing tags from the file. Really this is just a way to move the
+                // reader to the point directly after the tags and the start of the audio, so we
+                // can copy the audio to the cursor after writing our modified tags.
+                let _ = FlacInternalTag::read_from(file)?;
+
+                inner.write_to(&mut cursor)?; // write our tags
+                std::io::copy(file, &mut cursor)?; // copy the rest of the file to the cursor
+
+                file.rewind()?; // rewind to the beginning of the file
+                file.write_all(&data)?; // dump the contents of the vec to the file
+            }
+            Self::Mp4Tag { inner } => inner.write_to(file)?,
+            Self::OpusTag { inner } => inner.write_to(file)?,
+        }
+
         Ok(())
     }
 

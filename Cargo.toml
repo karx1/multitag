@@ -12,7 +12,7 @@ readme = "README.md"
 id3 = "1.14.0"
 thiserror = "1"
 mp4ameta = "0.13.0"
-metaflac = "0.2.7"
+metaflac = "0.2.8"
 opusmeta = "1.1"
 
 [lints.clippy]
