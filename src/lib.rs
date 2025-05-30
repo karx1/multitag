@@ -163,8 +163,7 @@ impl Tag {
     /// file should already contain an opus stream in order to correctly write opus tags).
     ///
     /// The file's cursor should be at the beginning of the file, and it should be opened with
-    /// read, write, and truncate modes set (See [`OpenOptions`](std::fs::OpenOptions) for more
-    /// info).
+    /// read and write modes set (See [`OpenOptions`] for more info).
     ///
     /// # Errors
     /// This method can error if writing the tags fails, or if accessing the file fails (for
