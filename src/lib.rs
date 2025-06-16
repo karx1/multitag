@@ -196,6 +196,12 @@ impl Tag {
         Ok(())
     }
 
+    /// Write to a byte vector. The vector should already contain valid data of the correct type (e.g. the
+    /// vector should already contain an opus stream in order to correctly write opus tags).
+    ///
+    /// # Errors
+    /// This method can error if one of the internal write methods fails. If that happens, the
+    /// inner error will contain more information.
     pub fn write_to_vec(&mut self, vec: &mut Vec<u8>) -> Result<()> {
         // we have to clone the vec because id3 and mp4ameta don't implement their traits for
         // Cursor<&mut Vec<u8>>, only Cursor<Vec<u8>>
