@@ -316,12 +316,12 @@ impl Tag {
                     .map(Picture::from);
 
                 let artist = inner
-                    .get_one("ALBUM_ARTIST".into())
-                    .or_else(|| inner.get_one("ALBUMARTIST".into()))
+                    .get_one(&"ALBUM_ARTIST".into())
+                    .or_else(|| inner.get_one(&"ALBUMARTIST".into()))
                     .map(Into::into);
 
                 Some(Album {
-                    title: inner.get_one("ALBUM".into()).map(Into::into),
+                    title: inner.get_one(&"ALBUM".into()).map(Into::into),
                     artist,
                     cover,
                 })
@@ -429,9 +429,9 @@ impl Tag {
                 inner.remove_artworks();
             }
             Self::OpusTag { inner } => {
-                inner.remove_entries("ALBUM".into());
-                inner.remove_entries("ALBUMARTIST".into());
-                inner.remove_entries("ALBUM_ARTIST".into());
+                inner.remove_entries(&"ALBUM".into());
+                inner.remove_entries(&"ALBUMARTIST".into());
+                inner.remove_entries(&"ALBUM_ARTIST".into());
 
                 let _ = inner.remove_picture_type(opusmeta::picture::PictureType::CoverFront);
             }
@@ -445,7 +445,7 @@ impl Tag {
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
-            Self::OpusTag { inner } => inner.get_one("TITLE".into()).map(String::as_str),
+            Self::OpusTag { inner } => inner.get_one(&"TITLE".into()).map(String::as_str),
         }
     }
 
@@ -466,7 +466,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("TITLE"),
             Self::Mp4Tag { inner } => inner.remove_title(),
             Self::OpusTag { inner } => {
-                inner.remove_entries("TITLE".into());
+                inner.remove_entries(&"TITLE".into());
             }
         }
     }
@@ -485,7 +485,7 @@ impl Tag {
             )
             .filter(|s| !s.is_empty()),
             Self::Mp4Tag { inner } => inner.artist().map(std::string::ToString::to_string),
-            Self::OpusTag { inner } => Some(inner.get("ARTIST".into())?.join("; ")),
+            Self::OpusTag { inner } => Some(inner.get(&"ARTIST".into())?.join("; ")),
         }
     }
 
@@ -496,7 +496,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.set_vorbis("ARTIST", vec![artist]),
             Self::Mp4Tag { inner } => inner.set_artist(artist),
             Self::OpusTag { inner } => {
-                inner.remove_entries("ARTIST".into());
+                inner.remove_entries(&"ARTIST".into());
                 inner.add_one("ARTIST".into(), artist.into());
             }
         }
@@ -509,7 +509,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("ARTIST"),
             Self::Mp4Tag { inner } => inner.remove_artists(),
             Self::OpusTag { inner } => {
-                inner.remove_entries("ARTIST".into());
+                inner.remove_entries(&"ARTIST".into());
             }
         }
     }
@@ -532,7 +532,7 @@ impl Tag {
                     Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
                 })?,
             Self::OpusTag { inner } => inner
-                .get_one("DATE".into())
+                .get_one(&"DATE".into())
                 .and_then(|s| Timestamp::from_str(s).ok()),
         }
     }
@@ -562,7 +562,7 @@ impl Tag {
                 )),
             ),
             Self::OpusTag { inner } => {
-                inner.remove_entries("DATE".into());
+                inner.remove_entries(&"DATE".into());
                 inner.add_one(
                     "DATE".into(),
                     format!(
@@ -585,7 +585,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
             Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
             Self::OpusTag { inner } => {
-                inner.remove_entries("DATE".into());
+                inner.remove_entries(&"DATE".into());
             }
         }
     }
