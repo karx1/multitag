@@ -18,6 +18,7 @@ pub struct Album {
     pub cover: Option<Picture>,
 }
 
+/// Stores picture data.
 #[derive(Clone, Debug)]
 pub struct Picture {
     pub data: Vec<u8>,
