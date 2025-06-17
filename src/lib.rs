@@ -1,7 +1,4 @@
-//! `multitag` is a crate for reading and writing audio metadata of various formats
-//!
-//! We currently support reading and writing metadata to mp3, wav, aiff, flac, and mp4/m4a/...
-//! files, with support for more formats on the way.
+#![doc = include_str!("../README.md")]
 
 pub mod data;
 

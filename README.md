@@ -1,5 +1,15 @@
 # multitag
 
+[Documentation](https://docs.rs/multitag) | [GitHub](https://github.com/karx1/multitag) | [Crates.io](https://crates.io/crates/multitag)
+
 `multitag` is a Rust crate for reading and writing music metadata in a variety of formats. It aims to fix some of the issues present in `audiotag`, such as adding `wav` file support.
 
-It currently supports reading and writing metadata to mp3, wav, aiff, flac, and mp4/m4a/... files, with support for more formats on the way.
+### Supported Formats
+| Format | Backend |
+| ------ | ------- |
+| `mp3/wav/aiff` | [`id3`](https://crates.io/crates/id3) |
+| `flac` | [`metaflac`](https://crates.io/crates/metaflac) |
+| `mp4/m4a/m4p/m4b/m4r/m4a` | [`mp4ameta`](https://crates.io/crates/mp4ameta) |
+| `opus` | [`opusmeta`](https://crates.io/crates/opusmeta) |
+
+PRs that add support for more formats are appreciated!

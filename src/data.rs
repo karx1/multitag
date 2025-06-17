@@ -1,5 +1,6 @@
-//! This module contains useful types for representing audio metadata information. The types in
-//! this module are typically returned by methods on [`Tag`](crate::Tag).
+//! Useful types for representing audio metadata information.
+//!
+//! The types in this module are typically returned by methods on [`Tag`](crate::Tag).
 
 use crate::{Error, Result};
 use id3::frame::Picture as Id3Picture;
