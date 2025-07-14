@@ -607,4 +607,43 @@ impl Tag {
             other.set_date(date);
         }
     }
+
+    /// Gets lyrics
+    /// Since Opus metadata doesn't specify a field for lyrics. It will try to get LYRICS tag field
+    #[must_use]
+    pub fn lyrics(&self) -> Option<String> {
+        match self {
+            Self::Id3Tag { inner } => Some(inner.lyrics()
+                .map(|l| l.text.clone())
+                .collect()),
+            Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
+            Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
+            Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.to_string()),
+        }
+    }
+
+    /// Sets lyrics
+    pub fn set_lyrics(&mut self, lyrics: &str) {
+        match self {
+            Self::Id3Tag { inner } => inner.set_text("USLT", lyrics),
+            Self::VorbisFlacTag { inner } => inner.set_vorbis("LYRICS", vec![lyrics]),
+            Self::Mp4Tag { inner } => inner.set_lyrics(lyrics),
+            Self::OpusTag { inner } => {
+                inner.remove_entries(&"LYRICS".into());
+                inner.add_one("LYRICS".into(), lyrics.into());
+            }
+        }
+    }
+
+    /// Removes lyrics
+    pub fn remove_lyrics(&mut self) {
+        match self {
+            Self::Id3Tag { inner } => inner.remove_all_lyrics(),
+            Self::VorbisFlacTag { inner } => inner.remove_vorbis("LYRICS"),
+            Self::Mp4Tag { inner } => inner.remove_lyrics(),
+            Self::OpusTag { inner } => {
+                inner.remove_entries(&"LYRICS".into());
+            }
+        }
+    }
 }
