@@ -625,7 +625,13 @@ impl Tag {
     /// Sets lyrics
     pub fn set_lyrics(&mut self, lyrics: &str) {
         match self {
-            Self::Id3Tag { inner } => inner.set_text("USLT", lyrics),
+            Self::Id3Tag { inner } => {
+                inner.add_frame( id3::frame::Lyrics {
+                    lang: String::new(),
+                    description: String::new(),
+                    text: lyrics.to_string(),
+                });
+            },
             Self::VorbisFlacTag { inner } => inner.set_vorbis("LYRICS", vec![lyrics]),
             Self::Mp4Tag { inner } => inner.set_lyrics(lyrics),
             Self::OpusTag { inner } => {
