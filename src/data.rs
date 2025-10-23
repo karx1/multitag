@@ -8,6 +8,7 @@ use id3::frame::Timestamp as Id3Timestamp;
 use metaflac::block::Picture as FlacPicture;
 use mp4ameta::Img as Mp4Picture;
 use mp4ameta::ImgFmt as Mp4ImageFmt;
+use oggmeta::Picture as OggPicture;
 use opusmeta::picture::Picture as OpusPicture;
 use std::str::FromStr;
 
@@ -80,6 +81,15 @@ impl From<OpusPicture> for Picture {
         Self {
             data: value.data,
             mime_type: value.mime_type,
+        }
+    }
+}
+
+impl From<OggPicture> for Picture {
+    fn from(value: OggPicture) -> Self {
+        Self {
+            data: value.data,
+            mime_type: value.media_type,
         }
     }
 }
