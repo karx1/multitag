@@ -12,6 +12,7 @@
 | `flac`                    | [`metaflac`](https://crates.io/crates/metaflac) |
 | `mp4/m4a/m4p/m4b/m4r/m4a` | [`mp4ameta`](https://crates.io/crates/mp4ameta) |
 | `opus`                    | [`opusmeta`](https://crates.io/crates/opusmeta) |
+| `ogg`                     | [`oggmeta`](https://crates.io/crates/oggmeta)   |
 
 PRs that add support for more formats are appreciated.
 
