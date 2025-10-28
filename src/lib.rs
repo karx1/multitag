@@ -10,6 +10,7 @@ use mp4ameta::Data as Mp4Data;
 use mp4ameta::Fourcc as Mp4Fourcc;
 use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
+use oggmeta::Tag as OggInternalTag;
 use opusmeta::Tag as OpusInternalTag;
 use std::convert::Into;
 use std::fs::{File, OpenOptions};
@@ -48,6 +49,9 @@ pub enum Error {
     /// Wrapper around a [`opusmeta::Error`]. See there for more info.
     #[error("{0}")]
     OpusError(#[from] opusmeta::Error),
+    /// Wrapper around a [`oggmeta::Error`]. See there for more info.
+    #[error("{0}")]
+    OggError(#[from] oggmeta::Error),
     /// Unable to parse a [`Timestamp`] from a string.
     #[error("Unable to parse timestamp from string")]
     TimestampParseError,
@@ -68,6 +72,7 @@ pub enum Tag {
     VorbisFlacTag { inner: FlacInternalTag },
     Mp4Tag { inner: Mp4InternalTag },
     OpusTag { inner: OpusInternalTag },
+    OggTag { inner: OggInternalTag },
 }
 
 impl Tag {
@@ -139,6 +144,10 @@ impl Tag {
                 let inner = OpusInternalTag::read_from(f_in)?;
                 Ok(Self::OpusTag { inner })
             }
+            "ogg" => {
+                let inner = OggInternalTag::read_from(&mut f_in)?;
+                Ok(Self::OggTag { inner })
+            }
             _ => Err(Error::UnsupportedAudioFormat),
         }
     }
@@ -152,6 +161,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.write_to_path(path)?,
             Self::Mp4Tag { inner } => inner.write_to_path(path)?,
             Self::OpusTag { inner } => inner.write_to_path(path)?,
+            Self::OggTag { inner } => inner.write_to_path(&path)?,
         }
         Ok(())
     }
@@ -188,6 +198,7 @@ impl Tag {
             }
             Self::Mp4Tag { inner } => inner.write_to(file)?,
             Self::OpusTag { inner } => inner.write_to(file)?,
+            Self::OggTag { inner } => inner.write_to(file)?,
         }
 
         Ok(())
@@ -222,6 +233,7 @@ impl Tag {
             }
             Self::Mp4Tag { inner } => inner.write_to(&mut cursor)?,
             Self::OpusTag { inner } => inner.write_to(&mut cursor)?,
+            Self::OggTag { inner } => inner.write_to(&mut cursor)?,
         }
 
         *vec = cursor.into_inner();
@@ -323,6 +335,27 @@ impl Tag {
                     cover,
                 })
             }
+            Self::OggTag { inner } => {
+                let cover = inner
+                    .pictures
+                    .iter()
+                    .find(|pic| matches!(pic.picture_type, oggmeta::PictureType::FrontCover))
+                    .map(|pic| Picture::from(pic.clone()));
+
+                Some(Album {
+                    title: inner
+                        .comments
+                        .get("album")?
+                        .first()
+                        .map(std::convert::Into::into),
+                    artist: inner
+                        .comments
+                        .get("album_artist")?
+                        .first()
+                        .map(std::convert::Into::into),
+                    cover,
+                })
+            }
         }
     }
 
@@ -400,6 +433,20 @@ impl Tag {
                     inner.add_picture(&pic)?;
                 }
             }
+            Self::OggTag { inner } => {
+                if let Some(title) = album.title {
+                    inner.comments.insert("album".into(), vec![title]);
+                }
+                if let Some(album_artist) = album.artist {
+                    inner
+                        .comments
+                        .insert("album_artist".into(), vec![album_artist]);
+                }
+                if let Some(picture) = album.cover {
+                    // Try to decode the image to obtain width/height and color depth
+                    inner.pictures.push(picture.data.as_slice().try_into()?);
+                }
+            }
         }
         Ok(())
     }
@@ -432,6 +479,11 @@ impl Tag {
 
                 let _ = inner.remove_picture_type(opusmeta::picture::PictureType::CoverFront);
             }
+            Self::OggTag { inner } => {
+                inner.comments.remove("ALBUM");
+                inner.comments.remove("ALBUM_ARTIST");
+                inner.comments.remove("ALBUMARTIST");
+            }
         }
     }
 
@@ -443,6 +495,11 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
             Self::OpusTag { inner } => inner.get_one(&"TITLE".into()).map(String::as_str),
+            Self::OggTag { inner } => inner
+                .comments
+                .get("TITLE")
+                .and_then(|o| o.first())
+                .map(String::as_str),
         }
     }
 
@@ -453,6 +510,11 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.set_vorbis("TITLE", vec![title]),
             Self::Mp4Tag { inner } => inner.set_title(title),
             Self::OpusTag { inner } => inner.add_one("TITLE".into(), title.into()),
+            Self::OggTag { inner } => inner
+                .comments
+                .entry("TITLE".into())
+                .or_default()
+                .push(title.into()),
         }
     }
 
@@ -464,6 +526,9 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.remove_title(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"TITLE".into());
+            }
+            Self::OggTag { inner } => {
+                inner.comments.remove("TITLE");
             }
         }
     }
@@ -483,6 +548,7 @@ impl Tag {
             .filter(|s| !s.is_empty()),
             Self::Mp4Tag { inner } => inner.artist().map(std::string::ToString::to_string),
             Self::OpusTag { inner } => Some(inner.get(&"ARTIST".into())?.join("; ")),
+            Self::OggTag { inner } => Some(inner.comments.get("ARTIST")?.join("; ")),
         }
     }
 
@@ -496,6 +562,10 @@ impl Tag {
                 inner.remove_entries(&"ARTIST".into());
                 inner.add_one("ARTIST".into(), artist.into());
             }
+            Self::OggTag { inner } => {
+                inner.comments.remove("ARTIST");
+                inner.comments.insert("ARTIST".into(), vec![artist.into()]);
+            }
         }
     }
 
@@ -507,6 +577,9 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.remove_artists(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"ARTIST".into());
+            }
+            Self::OggTag { inner } => {
+                inner.comments.remove("ARTIST");
             }
         }
     }
@@ -531,6 +604,10 @@ impl Tag {
             Self::OpusTag { inner } => inner
                 .get_one(&"DATE".into())
                 .and_then(|s| Timestamp::from_str(s).ok()),
+            Self::OggTag { inner } => inner
+                .comments
+                .get("DATE")
+                .and_then(|v| Timestamp::from_str(v.first()?).ok()),
         }
     }
 
@@ -570,6 +647,18 @@ impl Tag {
                     ),
                 );
             }
+            Self::OggTag { inner } => {
+                inner.comments.remove("DATE");
+                inner.comments.insert(
+                    "DATE".into(),
+                    vec![format!(
+                        "{:04}-{:02}-{:02}",
+                        timestamp.year,
+                        timestamp.month.unwrap_or_default(),
+                        timestamp.day.unwrap_or_default()
+                    )],
+                );
+            }
         }
     }
 
@@ -583,6 +672,9 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
+            }
+            Self::OggTag { inner } => {
+                inner.comments.remove("DATE");
             }
         }
     }
@@ -613,12 +705,11 @@ impl Tag {
     #[must_use]
     pub fn lyrics(&self) -> Option<String> {
         match self {
-            Self::Id3Tag { inner } => Some(inner.lyrics()
-                .map(|l| l.text.clone())
-                .collect()),
+            Self::Id3Tag { inner } => Some(inner.lyrics().map(|l| l.text.clone()).collect()),
             Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
             Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
             Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.to_string()),
+            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.to_string()),
         }
     }
 
@@ -626,17 +717,21 @@ impl Tag {
     pub fn set_lyrics(&mut self, lyrics: &str) {
         match self {
             Self::Id3Tag { inner } => {
-                inner.add_frame( id3::frame::Lyrics {
+                inner.add_frame(id3::frame::Lyrics {
                     lang: String::new(),
                     description: String::new(),
                     text: lyrics.to_string(),
                 });
-            },
+            }
             Self::VorbisFlacTag { inner } => inner.set_vorbis("LYRICS", vec![lyrics]),
             Self::Mp4Tag { inner } => inner.set_lyrics(lyrics),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"LYRICS".into());
                 inner.add_one("LYRICS".into(), lyrics.into());
+            }
+            Self::OggTag { inner } => {
+                inner.comments.remove("LYRICS");
+                inner.comments.insert("LYRICS".into(), vec![lyrics.into()]);
             }
         }
     }
@@ -649,6 +744,9 @@ impl Tag {
             Self::Mp4Tag { inner } => inner.remove_lyrics(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"LYRICS".into());
+            }
+            Self::OggTag { inner } => {
+                inner.comments.remove("LYRICS");
             }
         }
     }
