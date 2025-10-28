@@ -2,7 +2,7 @@
 
 pub mod data;
 
-use data::*;
+use data::{Album, Picture, Timestamp};
 use id3::Tag as Id3InternalTag;
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
