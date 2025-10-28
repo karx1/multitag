@@ -444,12 +444,7 @@ impl Tag {
                 }
                 if let Some(picture) = album.cover {
                     // Try to decode the image to obtain width/height and color depth
-                    let dyn_img = image::load_from_memory(picture.data.as_slice())
-                        .map_err(|_| Error::InvalidImageFormat)?;
-
-                    let ogg_pic = dyn_img.into();
-
-                    inner.pictures.push(ogg_pic);
+                    inner.pictures.push(picture.data.as_slice().try_into()?);
                 }
             }
         }
@@ -500,7 +495,11 @@ impl Tag {
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
             Self::Mp4Tag { inner } => inner.title(),
             Self::OpusTag { inner } => inner.get_one(&"TITLE".into()).map(String::as_str),
-            Self::OggTag { inner } => inner.comments.get("TITLE").map(|o| o[0].as_str()),
+            Self::OggTag { inner } => inner
+                .comments
+                .get("TITLE")
+                .and_then(|o| o.first())
+                .map(String::as_str),
         }
     }
 
@@ -565,10 +564,7 @@ impl Tag {
             }
             Self::OggTag { inner } => {
                 inner.comments.remove("ARTIST");
-                inner.comments.insert(
-                    "ARTIST".into(),
-                    artist.split("; ").map(ToString::to_string).collect(),
-                );
+                inner.comments.insert("ARTIST".into(), vec![artist.into()]);
             }
         }
     }
@@ -611,7 +607,7 @@ impl Tag {
             Self::OggTag { inner } => inner
                 .comments
                 .get("DATE")
-                .and_then(|v| Timestamp::from_str(&v[0]).ok()),
+                .and_then(|v| Timestamp::from_str(v.first()?).ok()),
         }
     }
 
@@ -713,7 +709,7 @@ impl Tag {
             Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
             Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
             Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.to_string()),
-            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?[0].to_string()),
+            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.to_string()),
         }
     }
 
