@@ -23,4 +23,5 @@ fn main() {
     let extension = path.extension().unwrap().to_str().unwrap();
     let tag = Tag::read_from(extension, cursor).unwrap();
     println!("{:#?}", tag.title());
+    println!("{:#?}", tag.artists());
 }

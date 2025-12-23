@@ -18,6 +18,7 @@ use std::io::Cursor;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::str::FromStr;
+use std::string::ToString;
 use thiserror::Error;
 
 const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
@@ -75,6 +76,7 @@ pub enum Tag {
     OggTag { inner: OggInternalTag },
 }
 
+// reading/writing Tag objects
 impl Tag {
     /// Attempts to read a set of tags from the given path.
     ///
@@ -219,7 +221,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.write_to_file(&mut cursor, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => {
-                // TODO: Do this
+                // See write_to_file method above for rationale
                 let mut data: Vec<u8> = Vec::new();
                 let mut other_cursor = Cursor::new(&mut data);
 
@@ -239,7 +241,10 @@ impl Tag {
         *vec = cursor.into_inner();
         Ok(())
     }
+}
 
+// creating new tags
+impl Tag {
     /// Creates an empty set of tags in the ID3 format.
     #[must_use]
     pub fn new_empty_id3() -> Self {
@@ -534,21 +539,34 @@ impl Tag {
     }
 
     /// Gets the artist (note: NOT the album artist!)
-    /// If multiple ARTIST tags are present, they will be joined with a `; `
+    ///
+    /// If multiple artist tags are present, they will be joined with a `; `.
+    /// Conversely, if no artist tags exist, returns None.
     #[must_use]
     pub fn artist(&self) -> Option<String> {
+        // maybe at some point in the future we just want to return the first
+        // artist in the Vec?
+        self.artists().map(|v| v.join("; "))
+    }
+
+    /// Gets all artists (note: NOT the album artist!)
+    ///
+    /// If no artist tags exist, returns None.
+    #[must_use]
+    pub fn artists(&self) -> Option<Vec<String>> {
         match self {
-            Self::Id3Tag { inner } => inner.artist().map(std::string::ToString::to_string),
+            Self::Id3Tag { inner } => inner
+                .artists()
+                .map(|v: Vec<&str>| v.iter().map(ToString::to_string).collect()),
             Self::VorbisFlacTag { inner } => Some(
                 inner
                     .get_vorbis("ARTIST")?
-                    .collect::<Vec<&str>>()
-                    .join("; "),
-            )
-            .filter(|s| !s.is_empty()),
-            Self::Mp4Tag { inner } => inner.artist().map(std::string::ToString::to_string),
-            Self::OpusTag { inner } => Some(inner.get(&"ARTIST".into())?.join("; ")),
-            Self::OggTag { inner } => Some(inner.comments.get("ARTIST")?.join("; ")),
+                    .map(ToString::to_string)
+                    .collect(),
+            ),
+            Self::Mp4Tag { inner } => Some(inner.artists().map(ToString::to_string).collect()),
+            Self::OpusTag { inner } => inner.get(&"ARTIST".into()).cloned(),
+            Self::OggTag { inner } => inner.comments.get("ARTIST").cloned(),
         }
     }
 
@@ -569,7 +587,60 @@ impl Tag {
         }
     }
 
-    /// Removes the artist (note: NOT the album artist!)
+    /// Sets multiple artists (node: NOT the album artists!)
+    ///
+    /// Any existing artists will be removed and the new artists inserted in
+    /// their place.
+    pub fn set_artists(&mut self, artists: Vec<String>) {
+        match self {
+            Self::Id3Tag { inner } => inner.set_text_values("TPE1", artists),
+            Self::VorbisFlacTag { inner } => {
+                inner
+                    .vorbis_comments_mut()
+                    .comments
+                    .insert("ARTIST".into(), artists);
+            }
+            Self::Mp4Tag { inner } => inner.set_artists(artists),
+            Self::OpusTag { inner } => {
+                inner.set_entries("ARTIST".into(), artists);
+            }
+            Self::OggTag { inner } => {
+                inner.comments.insert("ARTIST".into(), artists);
+            }
+        }
+    }
+
+    pub fn add_artist(&mut self, artist: &str) {
+        match self {
+            Self::Id3Tag { inner } => {
+                // this is a lot of allocations for something that should be
+                // pretty simple
+                // but idk how to avoid this bc of borrow checker
+                let mut prev: Vec<String> = inner
+                    .artists()
+                    .map(|v| v.into_iter().map(ToString::to_string).collect())
+                    .unwrap_or_default();
+
+                prev.push(artist.to_owned());
+                inner.set_text_values("TPE1", prev);
+            }
+            Self::VorbisFlacTag { inner } => inner
+                .vorbis_comments_mut()
+                .comments
+                .entry("ARTIST".into())
+                .or_default()
+                .push(artist.into()),
+            Self::Mp4Tag { inner } => inner.add_artist(artist),
+            Self::OpusTag { inner } => inner.add_one("ARTIST".into(), artist.into()),
+            Self::OggTag { inner } => inner
+                .comments
+                .entry("ARTIST".into())
+                .or_default()
+                .push(artist.into()),
+        }
+    }
+
+    /// Remove all artists (note: NOT the album artists!)
     pub fn remove_artist(&mut self) {
         match self {
             Self::Id3Tag { inner } => inner.remove_artist(),

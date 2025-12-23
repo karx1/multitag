@@ -20,8 +20,11 @@ fn main() {
 
     file.rewind().unwrap();
 
-    let title = args().skip(2).collect::<Vec<String>>().join(" ");
+    // for artist in args().skip(2) {
+    // tag.add_artist(&artist);
+    // }
 
-    tag.set_title(&title);
+    tag.remove_artist();
+
     tag.write_to_file(&mut file).unwrap();
 }
