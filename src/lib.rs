@@ -6,9 +6,6 @@ use data::{Album, Picture, Timestamp};
 use id3::Tag as Id3InternalTag;
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
-use mp4ameta::Data as Mp4Data;
-use mp4ameta::Fourcc as Mp4Fourcc;
-use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
 use oggmeta::Tag as OggInternalTag;
 use opusmeta::Tag as OpusInternalTag;
@@ -20,8 +17,6 @@ use std::path::Path;
 use std::str::FromStr;
 use std::string::ToString;
 use thiserror::Error;
-
-const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
 
 /// Error type.
 ///
@@ -666,12 +661,7 @@ impl Tag {
                 .get_vorbis("DATE")?
                 .next()
                 .and_then(|s| Timestamp::from_str(s).ok()),
-            Self::Mp4Tag { inner } => inner
-                .data()
-                .find(|data| matches!(data.0.fourcc().unwrap_or_default(), DATE_FOURCC))
-                .map(|data| -> Option<Timestamp> {
-                    Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
-                })?,
+            Self::Mp4Tag { inner } => inner.year().and_then(|s| Timestamp::from_str(s).ok()),
             Self::OpusTag { inner } => inner
                 .get_one(&"DATE".into())
                 .and_then(|s| Timestamp::from_str(s).ok()),
@@ -697,15 +687,12 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )],
             ),
-            Self::Mp4Tag { inner } => inner.set_data(
-                DATE_FOURCC,
-                Mp4Data::Utf8(format!(
-                    "{:04}-{:02}-{:02}",
-                    timestamp.year,
-                    timestamp.month.unwrap_or_default(),
-                    timestamp.day.unwrap_or_default()
-                )),
-            ),
+            Self::Mp4Tag { inner } => inner.set_year(format!(
+                "{:04}-{:02}-{:02}",
+                timestamp.year,
+                timestamp.month.unwrap_or_default(),
+                timestamp.day.unwrap_or_default()
+            )),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
                 inner.add_one(
@@ -740,7 +727,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.remove_date_released(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
-            Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
+            Self::Mp4Tag { inner } => inner.remove_year(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
             }
