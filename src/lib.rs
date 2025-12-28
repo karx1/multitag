@@ -605,6 +605,9 @@ impl Tag {
         }
     }
 
+    /// Adds one artist to the list of artists. (node: NOT the album artists!)
+    ///
+    /// Existing artists will remain in the set of tags.
     pub fn add_artist(&mut self, artist: &str) {
         match self {
             Self::Id3Tag { inner } => {
