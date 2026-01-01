@@ -10,54 +10,101 @@ use mp4ameta::Tag as Mp4InternalTag;
 use oggmeta::Tag as OggInternalTag;
 use opusmeta::Tag as OpusInternalTag;
 use std::convert::Into;
+use std::fmt::Display;
 use std::fs::{File, OpenOptions};
 use std::io::Cursor;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::str::FromStr;
 use std::string::ToString;
-use thiserror::Error;
 
 /// Error type.
 ///
 /// Describes various errors that this crate could produce.
-#[derive(Error, Debug)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A file does not have a file extension.
-    #[error("Given file does not have a file extension")]
     NoFileExtension,
     /// The file *extension* does not contain valid unicode
-    #[error("File extension must be valid unicode")]
     InvalidFileExtension,
     /// The format of the specified audio file is not currently supported by this crate.
-    #[error("Unsupported audio format")]
     UnsupportedAudioFormat,
     /// Wrapper around an [`id3::Error`]. See there for more info.
-    #[error("{0}")]
-    Id3Error(#[from] id3::Error),
+    Id3Error(id3::Error),
     /// Wrapper around a [`metaflac::Error`]. See there for more info.
-    #[error("{0}")]
-    FlacError(#[from] metaflac::Error),
+    FlacError(metaflac::Error),
     /// Wrapper around a [`mp4ameta::Error`]. See there for more info.
-    #[error("{0}")]
-    Mp4Error(#[from] mp4ameta::Error),
+    Mp4Error(mp4ameta::Error),
     /// Wrapper around a [`opusmeta::Error`]. See there for more info.
-    #[error("{0}")]
-    OpusError(#[from] opusmeta::Error),
+    OpusError(opusmeta::Error),
     /// Wrapper around a [`oggmeta::Error`]. See there for more info.
-    #[error("{0}")]
-    OggError(#[from] oggmeta::Error),
+    OggError(oggmeta::Error),
     /// Unable to parse a [`Timestamp`] from a string.
-    #[error("Unable to parse timestamp from string")]
     TimestampParseError,
     /// Specified cover image is not of a valid mime type.
     /// Supported types are: bmp, jpg, png.
-    #[error("Given cover image data is not of valid type (bmp, jpeg, png)")]
     InvalidImageFormat,
     /// An unspecified I/O error occurred.
-    #[error("An I/O error occurred. Please see the contained io::Error for more info.")]
-    IoError(#[from] std::io::Error),
+    IoError(std::io::Error),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::NoFileExtension => f.write_str("Given file does not have a file extension"),
+            Error::InvalidFileExtension => f.write_str("File extension must be valid unicode"),
+            Error::UnsupportedAudioFormat => f.write_str("Unsupported audio format"),
+            Error::Id3Error(error) => Display::fmt(error, f),
+            Error::FlacError(error) => Display::fmt(error, f),
+            Error::Mp4Error(error) => Display::fmt(error, f),
+            Error::OpusError(error) => Display::fmt(error, f),
+            Error::OggError(error) => Display::fmt(error, f),
+            Error::TimestampParseError => f.write_str("Unable to parse timestamp from string"),
+            Error::InvalidImageFormat => {
+                f.write_str("Given cover image data is not of valid type (bmp, jpeg, png)")
+            }
+            Error::IoError(_) => f.write_str(
+                "An I/O error occurred. Please see the contained io::Error for more info.",
+            ),
+        }
+    }
+}
+
+impl From<id3::Error> for Error {
+    fn from(value: id3::Error) -> Self {
+        Self::Id3Error(value)
+    }
+}
+
+impl From<metaflac::Error> for Error {
+    fn from(value: metaflac::Error) -> Self {
+        Self::FlacError(value)
+    }
+}
+
+impl From<mp4ameta::Error> for Error {
+    fn from(value: mp4ameta::Error) -> Self {
+        Self::Mp4Error(value)
+    }
+}
+
+impl From<opusmeta::Error> for Error {
+    fn from(value: opusmeta::Error) -> Self {
+        Self::OpusError(value)
+    }
+}
+
+impl From<oggmeta::Error> for Error {
+    fn from(value: oggmeta::Error) -> Self {
+        Self::OggError(value)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

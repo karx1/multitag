@@ -10,7 +10,6 @@ readme = "README.md"
 
 [dependencies]
 id3 = "1.14.0"
-thiserror = "2"
 mp4ameta = "0.13.0"
 metaflac = "0.2.8"
 opusmeta = "3.0.0"
