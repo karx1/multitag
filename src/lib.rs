@@ -769,8 +769,8 @@ impl Tag {
             Self::Id3Tag { inner } => Some(inner.lyrics().map(|l| l.text.clone()).collect()),
             Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
             Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
-            Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.to_string()),
-            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.to_string()),
+            Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.clone()),
+            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.clone()),
         }
     }
 
