@@ -6,63 +6,105 @@ use data::{Album, Picture, Timestamp};
 use id3::Tag as Id3InternalTag;
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
-use mp4ameta::Data as Mp4Data;
-use mp4ameta::Fourcc as Mp4Fourcc;
-use mp4ameta::Ident as Mp4Ident;
 use mp4ameta::Tag as Mp4InternalTag;
 use oggmeta::Tag as OggInternalTag;
 use opusmeta::Tag as OpusInternalTag;
 use std::convert::Into;
+use std::fmt::Display;
 use std::fs::{File, OpenOptions};
 use std::io::Cursor;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::str::FromStr;
 use std::string::ToString;
-use thiserror::Error;
-
-const DATE_FOURCC: Mp4Fourcc = Mp4Fourcc([169, 100, 97, 121]);
 
 /// Error type.
 ///
 /// Describes various errors that this crate could produce.
-#[derive(Error, Debug)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A file does not have a file extension.
-    #[error("Given file does not have a file extension")]
     NoFileExtension,
     /// The file *extension* does not contain valid unicode
-    #[error("File extension must be valid unicode")]
     InvalidFileExtension,
     /// The format of the specified audio file is not currently supported by this crate.
-    #[error("Unsupported audio format")]
     UnsupportedAudioFormat,
     /// Wrapper around an [`id3::Error`]. See there for more info.
-    #[error("{0}")]
-    Id3Error(#[from] id3::Error),
+    Id3Error(id3::Error),
     /// Wrapper around a [`metaflac::Error`]. See there for more info.
-    #[error("{0}")]
-    FlacError(#[from] metaflac::Error),
+    FlacError(metaflac::Error),
     /// Wrapper around a [`mp4ameta::Error`]. See there for more info.
-    #[error("{0}")]
-    Mp4Error(#[from] mp4ameta::Error),
+    Mp4Error(mp4ameta::Error),
     /// Wrapper around a [`opusmeta::Error`]. See there for more info.
-    #[error("{0}")]
-    OpusError(#[from] opusmeta::Error),
+    OpusError(opusmeta::Error),
     /// Wrapper around a [`oggmeta::Error`]. See there for more info.
-    #[error("{0}")]
-    OggError(#[from] oggmeta::Error),
+    OggError(oggmeta::Error),
     /// Unable to parse a [`Timestamp`] from a string.
-    #[error("Unable to parse timestamp from string")]
     TimestampParseError,
     /// Specified cover image is not of a valid mime type.
     /// Supported types are: bmp, jpg, png.
-    #[error("Given cover image data is not of valid type (bmp, jpeg, png)")]
     InvalidImageFormat,
     /// An unspecified I/O error occurred.
-    #[error("An I/O error occurred. Please see the contained io::Error for more info.")]
-    IoError(#[from] std::io::Error),
+    IoError(std::io::Error),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::NoFileExtension => f.write_str("Given file does not have a file extension"),
+            Error::InvalidFileExtension => f.write_str("File extension must be valid unicode"),
+            Error::UnsupportedAudioFormat => f.write_str("Unsupported audio format"),
+            Error::Id3Error(error) => Display::fmt(error, f),
+            Error::FlacError(error) => Display::fmt(error, f),
+            Error::Mp4Error(error) => Display::fmt(error, f),
+            Error::OpusError(error) => Display::fmt(error, f),
+            Error::OggError(error) => Display::fmt(error, f),
+            Error::TimestampParseError => f.write_str("Unable to parse timestamp from string"),
+            Error::InvalidImageFormat => {
+                f.write_str("Given cover image data is not of valid type (bmp, jpeg, png)")
+            }
+            Error::IoError(_) => f.write_str(
+                "An I/O error occurred. Please see the contained io::Error for more info.",
+            ),
+        }
+    }
+}
+
+impl From<id3::Error> for Error {
+    fn from(value: id3::Error) -> Self {
+        Self::Id3Error(value)
+    }
+}
+
+impl From<metaflac::Error> for Error {
+    fn from(value: metaflac::Error) -> Self {
+        Self::FlacError(value)
+    }
+}
+
+impl From<mp4ameta::Error> for Error {
+    fn from(value: mp4ameta::Error) -> Self {
+        Self::Mp4Error(value)
+    }
+}
+
+impl From<opusmeta::Error> for Error {
+    fn from(value: opusmeta::Error) -> Self {
+        Self::OpusError(value)
+    }
+}
+
+impl From<oggmeta::Error> for Error {
+    fn from(value: oggmeta::Error) -> Self {
+        Self::OggError(value)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -611,6 +653,9 @@ impl Tag {
         }
     }
 
+    /// Adds one artist to the list of artists. (node: NOT the album artists!)
+    ///
+    /// Existing artists will remain in the set of tags.
     pub fn add_artist(&mut self, artist: &str) {
         match self {
             Self::Id3Tag { inner } => {
@@ -667,12 +712,7 @@ impl Tag {
                 .get_vorbis("DATE")?
                 .next()
                 .and_then(|s| Timestamp::from_str(s).ok()),
-            Self::Mp4Tag { inner } => inner
-                .data()
-                .find(|data| matches!(data.0.fourcc().unwrap_or_default(), DATE_FOURCC))
-                .map(|data| -> Option<Timestamp> {
-                    Timestamp::from_str(data.1.clone().into_string()?.as_str()).ok()
-                })?,
+            Self::Mp4Tag { inner } => inner.year().and_then(|s| Timestamp::from_str(s).ok()),
             Self::OpusTag { inner } => inner
                 .get_one(&"DATE".into())
                 .and_then(|s| Timestamp::from_str(s).ok()),
@@ -698,15 +738,12 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )],
             ),
-            Self::Mp4Tag { inner } => inner.set_data(
-                DATE_FOURCC,
-                Mp4Data::Utf8(format!(
-                    "{:04}-{:02}-{:02}",
-                    timestamp.year,
-                    timestamp.month.unwrap_or_default(),
-                    timestamp.day.unwrap_or_default()
-                )),
-            ),
+            Self::Mp4Tag { inner } => inner.set_year(format!(
+                "{:04}-{:02}-{:02}",
+                timestamp.year,
+                timestamp.month.unwrap_or_default(),
+                timestamp.day.unwrap_or_default()
+            )),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
                 inner.add_one(
@@ -741,7 +778,7 @@ impl Tag {
         match self {
             Self::Id3Tag { inner } => inner.remove_date_released(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
-            Self::Mp4Tag { inner } => inner.remove_data_of(&DATE_FOURCC),
+            Self::Mp4Tag { inner } => inner.remove_year(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
             }
@@ -780,8 +817,8 @@ impl Tag {
             Self::Id3Tag { inner } => Some(inner.lyrics().map(|l| l.text.clone()).collect()),
             Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
             Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
-            Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.to_string()),
-            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.to_string()),
+            Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.clone()),
+            Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.clone()),
         }
     }
 

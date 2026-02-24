@@ -10,11 +10,10 @@ readme = "README.md"
 
 [dependencies]
 id3 = "1.14.0"
-thiserror = "2"
 mp4ameta = "0.13.0"
 metaflac = "0.2.8"
-opusmeta = "2.0.0"
 oggmeta = "1.2.4"
+opusmeta = "3.0.0"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
