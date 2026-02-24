@@ -14,7 +14,7 @@ thiserror = "2"
 mp4ameta = "0.13.0"
 metaflac = "0.2.8"
 opusmeta = "2.0.0"
-oggmeta = "1.2.3"
+oggmeta = "1.2.4"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
