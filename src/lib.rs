@@ -110,6 +110,7 @@ impl From<std::io::Error> for Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An object containing tags of one of the supported formats.
+#[derive(Debug)]
 pub enum Tag {
     Id3Tag { inner: Id3InternalTag },
     VorbisFlacTag { inner: FlacInternalTag },
@@ -392,13 +393,13 @@ impl Tag {
                 Some(Album {
                     title: inner
                         .comments
-                        .get("album")?
-                        .first()
+                        .get("ALBUM")
+                        .and_then(|v| v.first())
                         .map(std::convert::Into::into),
                     artist: inner
                         .comments
-                        .get("album_artist")?
-                        .first()
+                        .get("ALBUM_ARTIST")
+                        .and_then(|v| v.first())
                         .map(std::convert::Into::into),
                     cover,
                 })
@@ -482,12 +483,12 @@ impl Tag {
             }
             Self::OggTag { inner } => {
                 if let Some(title) = album.title {
-                    inner.comments.insert("album".into(), vec![title]);
+                    inner.comments.insert("ALBUM".into(), vec![title]);
                 }
                 if let Some(album_artist) = album.artist {
                     inner
                         .comments
-                        .insert("album_artist".into(), vec![album_artist]);
+                        .insert("ALBUM_ARTIST".into(), vec![album_artist]);
                 }
                 if let Some(picture) = album.cover {
                     // Try to decode the image to obtain width/height and color depth
