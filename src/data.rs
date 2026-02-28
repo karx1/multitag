@@ -3,10 +3,14 @@
 //! The types in this module are typically returned by methods on [`Tag`](crate::Tag).
 
 use crate::{Error, Result};
+#[cfg(feature = "mp3")]
 use id3::frame::Picture as Id3Picture;
+#[cfg(feature = "mp3")]
 use id3::frame::Timestamp as Id3Timestamp;
 use metaflac::block::Picture as FlacPicture;
+#[cfg(feature = "mp4")]
 use mp4ameta::Img as Mp4Picture;
+#[cfg(feature = "mp4")]
 use mp4ameta::ImgFmt as Mp4ImageFmt;
 use oggmeta::Picture as OggPicture;
 use opusmeta::picture::Picture as OpusPicture;
@@ -27,6 +31,7 @@ pub struct Picture {
     pub mime_type: String,
 }
 
+#[cfg(feature = "mp3")]
 impl From<Id3Picture> for Picture {
     fn from(value: Id3Picture) -> Self {
         Self {
@@ -45,6 +50,7 @@ impl From<FlacPicture> for Picture {
     }
 }
 
+#[cfg(feature = "mp4")]
 impl From<Mp4Picture<&[u8]>> for Picture {
     fn from(value: Mp4Picture<&[u8]>) -> Self {
         Self {
@@ -58,6 +64,7 @@ impl From<Mp4Picture<&[u8]>> for Picture {
     }
 }
 
+#[cfg(feature = "mp4")]
 impl TryFrom<Picture> for Mp4Picture<Vec<u8>> {
     type Error = Error;
 
@@ -126,6 +133,7 @@ pub struct Timestamp {
     pub second: Option<u8>,
 }
 
+#[cfg(feature = "mp3")]
 impl From<Id3Timestamp> for Timestamp {
     fn from(value: Id3Timestamp) -> Self {
         Self {
@@ -139,6 +147,7 @@ impl From<Id3Timestamp> for Timestamp {
     }
 }
 
+#[cfg(feature = "mp3")]
 impl From<Timestamp> for Id3Timestamp {
     fn from(value: Timestamp) -> Self {
         Self {

@@ -9,11 +9,20 @@ homepage = "https://karx.xyz/projects/multitag"
 readme = "README.md"
 
 [dependencies]
-id3 = "1.14.0"
-mp4ameta = "0.13.0"
-metaflac = "0.2.8"
-opusmeta = "3.0.0"
-oggmeta = "1.2.3"
+id3 = { version = "1.14.0", optional = true }
+mp4ameta = { version = "0.13.0", optional = true }
+metaflac = { version = "0.2.8", optional = true }
+opusmeta = { version = "3.0.0", optional = true }
+oggmeta = { version = "1.2.3", optional = true }
+
+[features]
+# default = ["mp3", "mp4", "flac", "opus", "ogg"]
+default = ["mp4", "flac", "opus", "ogg"]
+mp3 = ["dep:id3"]
+mp4 = ["dep:mp4ameta"]
+flac = ["dep:metaflac"]
+opus = ["dep:opusmeta"]
+ogg = ["dep:oggmeta"]
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

@@ -3,9 +3,12 @@
 pub mod data;
 
 use data::{Album, Picture, Timestamp};
+#[cfg(feature = "mp3")]
 use id3::Tag as Id3InternalTag;
+#[cfg(feature = "mp3")]
 use id3::TagLike;
 use metaflac::Tag as FlacInternalTag;
+#[cfg(feature = "mp4")]
 use mp4ameta::Tag as Mp4InternalTag;
 use oggmeta::Tag as OggInternalTag;
 use opusmeta::Tag as OpusInternalTag;
@@ -30,10 +33,12 @@ pub enum Error {
     InvalidFileExtension,
     /// The format of the specified audio file is not currently supported by this crate.
     UnsupportedAudioFormat,
+    #[cfg(feature = "mp3")]
     /// Wrapper around an [`id3::Error`]. See there for more info.
     Id3Error(id3::Error),
     /// Wrapper around a [`metaflac::Error`]. See there for more info.
     FlacError(metaflac::Error),
+    #[cfg(feature = "mp4")]
     /// Wrapper around a [`mp4ameta::Error`]. See there for more info.
     Mp4Error(mp4ameta::Error),
     /// Wrapper around a [`opusmeta::Error`]. See there for more info.
@@ -55,8 +60,10 @@ impl Display for Error {
             Error::NoFileExtension => f.write_str("Given file does not have a file extension"),
             Error::InvalidFileExtension => f.write_str("File extension must be valid unicode"),
             Error::UnsupportedAudioFormat => f.write_str("Unsupported audio format"),
+            #[cfg(feature = "mp3")]
             Error::Id3Error(error) => Display::fmt(error, f),
             Error::FlacError(error) => Display::fmt(error, f),
+            #[cfg(feature = "mp4")]
             Error::Mp4Error(error) => Display::fmt(error, f),
             Error::OpusError(error) => Display::fmt(error, f),
             Error::OggError(error) => Display::fmt(error, f),
@@ -71,6 +78,7 @@ impl Display for Error {
     }
 }
 
+#[cfg(feature = "mp3")]
 impl From<id3::Error> for Error {
     fn from(value: id3::Error) -> Self {
         Self::Id3Error(value)
@@ -83,6 +91,7 @@ impl From<metaflac::Error> for Error {
     }
 }
 
+#[cfg(feature = "mp4")]
 impl From<mp4ameta::Error> for Error {
     fn from(value: mp4ameta::Error) -> Self {
         Self::Mp4Error(value)
@@ -111,11 +120,23 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// An object containing tags of one of the supported formats.
 pub enum Tag {
-    Id3Tag { inner: Id3InternalTag },
-    VorbisFlacTag { inner: FlacInternalTag },
-    Mp4Tag { inner: Mp4InternalTag },
-    OpusTag { inner: OpusInternalTag },
-    OggTag { inner: OggInternalTag },
+    #[cfg(feature = "mp3")]
+    Id3Tag {
+        inner: Id3InternalTag,
+    },
+    VorbisFlacTag {
+        inner: FlacInternalTag,
+    },
+    #[cfg(feature = "mp4")]
+    Mp4Tag {
+        inner: Mp4InternalTag,
+    },
+    OpusTag {
+        inner: OpusInternalTag,
+    },
+    OggTag {
+        inner: OggInternalTag,
+    },
 }
 
 // reading/writing Tag objects
@@ -156,6 +177,7 @@ impl Tag {
     /// encoded improperly. Please inspect the debug output of the error for more information.
     pub fn read_from<R: Read + Seek>(extension: &str, mut f_in: R) -> Result<Self> {
         match extension {
+            #[cfg(feature = "mp3")]
             "mp3" | "wav" | "aiff" => {
                 let res = Id3InternalTag::read_from2(f_in);
                 if res
@@ -172,6 +194,7 @@ impl Tag {
                 let inner = FlacInternalTag::read_from(&mut f_in)?;
                 Ok(Self::VorbisFlacTag { inner })
             }
+            #[cfg(feature = "mp4")]
             "mp4" | "m4a" | "m4p" | "m4b" | "m4r" | "m4v" => {
                 let res = Mp4InternalTag::read_from(&mut f_in);
                 if res
@@ -201,8 +224,10 @@ impl Tag {
     /// This function will error if writing the tags fails in any way.
     pub fn write_to_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.write_to_path(path, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => inner.write_to_path(path)?,
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.write_to_path(path)?,
             Self::OpusTag { inner } => inner.write_to_path(path)?,
             Self::OggTag { inner } => inner.write_to_path(&path)?,
@@ -221,6 +246,7 @@ impl Tag {
     /// example, if the modes are set wrong).
     pub fn write_to_file(&mut self, file: &mut File) -> Result<()> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.write_to_file(file, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => {
                 // this is needed because metaflac doesn't provide a clean way to write without a
@@ -240,6 +266,7 @@ impl Tag {
                 file.rewind()?; // rewind to the beginning of the file
                 file.write_all(&data)?; // dump the contents of the vec to the file
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.write_to(file)?,
             Self::OpusTag { inner } => inner.write_to(file)?,
             Self::OggTag { inner } => inner.write_to(file)?,
@@ -261,6 +288,7 @@ impl Tag {
         let mut cursor = Cursor::new(cloned);
 
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.write_to_file(&mut cursor, id3::Version::Id3v24)?,
             Self::VorbisFlacTag { inner } => {
                 // See write_to_file method above for rationale
@@ -275,6 +303,7 @@ impl Tag {
                 cursor.rewind()?; // rewind to the beginning of the cursor
                 cursor.write_all(&data)?;
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.write_to(&mut cursor)?,
             Self::OpusTag { inner } => inner.write_to(&mut cursor)?,
             Self::OggTag { inner } => inner.write_to(&mut cursor)?,
@@ -287,6 +316,7 @@ impl Tag {
 
 // creating new tags
 impl Tag {
+    #[cfg(feature = "mp3")]
     /// Creates an empty set of tags in the ID3 format.
     #[must_use]
     pub fn new_empty_id3() -> Self {
@@ -303,6 +333,7 @@ impl Tag {
         }
     }
 
+    #[cfg(feature = "mp4")]
     /// Creates an empty set of tags in the MP4 format.
     #[must_use]
     pub fn new_empty_mp4() -> Self {
@@ -326,6 +357,7 @@ impl Tag {
     #[must_use]
     pub fn get_album_info(&self) -> Option<Album> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => {
                 let cover = inner
                     .pictures()
@@ -358,6 +390,7 @@ impl Tag {
                     cover,
                 })
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => {
                 let cover = inner.artwork().map(Picture::from);
                 Some(Album {
@@ -412,6 +445,7 @@ impl Tag {
     /// Supported MIME types are: `image/bmp`, `image/jpeg`, `image/png`
     pub fn set_album_info(&mut self, album: Album) -> Result<()> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => {
                 if let Some(title) = album.title {
                     inner.set_album(title);
@@ -448,6 +482,7 @@ impl Tag {
                     );
                 }
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => {
                 if let Some(title) = album.title {
                     inner.set_album(title);
@@ -498,9 +533,10 @@ impl Tag {
         Ok(())
     }
 
-    /// Removes all album infofrom the audio track.
+    /// Removes all album info from the audio track.
     pub fn remove_all_album_info(&mut self) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => {
                 inner.remove_album();
                 inner.remove_album_artist();
@@ -514,6 +550,7 @@ impl Tag {
 
                 inner.remove_picture_type(metaflac::block::PictureType::CoverFront);
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => {
                 inner.remove_album();
                 inner.remove_album_artists();
@@ -538,8 +575,10 @@ impl Tag {
     #[must_use]
     pub fn title(&self) -> Option<&str> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.title(),
             Self::VorbisFlacTag { inner } => inner.get_vorbis("TITLE")?.next(),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.title(),
             Self::OpusTag { inner } => inner.get_one(&"TITLE".into()).map(String::as_str),
             Self::OggTag { inner } => inner
@@ -553,8 +592,10 @@ impl Tag {
     /// Sets the title.
     pub fn set_title(&mut self, title: &str) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.set_title(title),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("TITLE", vec![title]),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.set_title(title),
             Self::OpusTag { inner } => inner.add_one("TITLE".into(), title.into()),
             Self::OggTag { inner } => inner
@@ -568,8 +609,10 @@ impl Tag {
     /// Removes any title fields from the file.
     pub fn remove_title(&mut self) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.remove_title(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("TITLE"),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.remove_title(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"TITLE".into());
@@ -597,6 +640,7 @@ impl Tag {
     #[must_use]
     pub fn artists(&self) -> Option<Vec<String>> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner
                 .artists()
                 .map(|v: Vec<&str>| v.iter().map(ToString::to_string).collect()),
@@ -606,6 +650,7 @@ impl Tag {
                     .map(ToString::to_string)
                     .collect(),
             ),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => Some(inner.artists().map(ToString::to_string).collect()),
             Self::OpusTag { inner } => inner.get(&"ARTIST".into()).cloned(),
             Self::OggTag { inner } => inner.comments.get("ARTIST").cloned(),
@@ -615,8 +660,10 @@ impl Tag {
     /// Sets the artist (note: NOT the album artist!)
     pub fn set_artist(&mut self, artist: &str) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.set_artist(artist),
             Self::VorbisFlacTag { inner } => inner.set_vorbis("ARTIST", vec![artist]),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.set_artist(artist),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"ARTIST".into());
@@ -635,6 +682,7 @@ impl Tag {
     /// their place.
     pub fn set_artists(&mut self, artists: Vec<String>) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.set_text_values("TPE1", artists),
             Self::VorbisFlacTag { inner } => {
                 inner
@@ -642,6 +690,7 @@ impl Tag {
                     .comments
                     .insert("ARTIST".into(), artists);
             }
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.set_artists(artists),
             Self::OpusTag { inner } => {
                 inner.set_entries("ARTIST".into(), artists);
@@ -657,6 +706,7 @@ impl Tag {
     /// Existing artists will remain in the set of tags.
     pub fn add_artist(&mut self, artist: &str) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => {
                 // this is a lot of allocations for something that should be
                 // pretty simple
@@ -675,6 +725,7 @@ impl Tag {
                 .entry("ARTIST".into())
                 .or_default()
                 .push(artist.into()),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.add_artist(artist),
             Self::OpusTag { inner } => inner.add_one("ARTIST".into(), artist.into()),
             Self::OggTag { inner } => inner
@@ -688,8 +739,10 @@ impl Tag {
     /// Remove all artists (note: NOT the album artists!)
     pub fn remove_artist(&mut self) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.remove_artist(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("ARTIST"),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.remove_artists(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"ARTIST".into());
@@ -706,11 +759,13 @@ impl Tag {
     #[must_use]
     pub fn date(&self) -> Option<Timestamp> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.date_released().map(std::convert::Into::into),
             Self::VorbisFlacTag { inner } => inner
                 .get_vorbis("DATE")?
                 .next()
                 .and_then(|s| Timestamp::from_str(s).ok()),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.year().and_then(|s| Timestamp::from_str(s).ok()),
             Self::OpusTag { inner } => inner
                 .get_one(&"DATE".into())
@@ -727,6 +782,7 @@ impl Tag {
     /// In id3, this method corresponds to the `date_released` field.
     pub fn set_date(&mut self, timestamp: Timestamp) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.set_date_released(timestamp.into()),
             Self::VorbisFlacTag { inner } => inner.set_vorbis(
                 "DATE",
@@ -737,6 +793,7 @@ impl Tag {
                     timestamp.day.unwrap_or_default()
                 )],
             ),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.set_year(format!(
                 "{:04}-{:02}-{:02}",
                 timestamp.year,
@@ -775,8 +832,10 @@ impl Tag {
     /// In id3, this method corresponds to the `date_released` field.
     pub fn remove_date(&mut self) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.remove_date_released(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("DATE"),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.remove_year(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"DATE".into());
@@ -813,8 +872,10 @@ impl Tag {
     #[must_use]
     pub fn lyrics(&self) -> Option<String> {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => Some(inner.lyrics().map(|l| l.text.clone()).collect()),
             Self::VorbisFlacTag { inner } => Some(inner.get_vorbis("LYRICS")?.collect()),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => Some(inner.userdata.lyrics()?.to_owned()),
             Self::OpusTag { inner } => Some(inner.get_one(&"LYRICS".into())?.clone()),
             Self::OggTag { inner } => Some(inner.comments.get("LYRICS")?.first()?.clone()),
@@ -824,6 +885,7 @@ impl Tag {
     /// Sets lyrics
     pub fn set_lyrics(&mut self, lyrics: &str) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => {
                 inner.add_frame(id3::frame::Lyrics {
                     lang: String::new(),
@@ -832,6 +894,7 @@ impl Tag {
                 });
             }
             Self::VorbisFlacTag { inner } => inner.set_vorbis("LYRICS", vec![lyrics]),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.set_lyrics(lyrics),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"LYRICS".into());
@@ -847,8 +910,10 @@ impl Tag {
     /// Removes lyrics
     pub fn remove_lyrics(&mut self) {
         match self {
+            #[cfg(feature = "mp3")]
             Self::Id3Tag { inner } => inner.remove_all_lyrics(),
             Self::VorbisFlacTag { inner } => inner.remove_vorbis("LYRICS"),
+            #[cfg(feature = "mp4")]
             Self::Mp4Tag { inner } => inner.remove_lyrics(),
             Self::OpusTag { inner } => {
                 inner.remove_entries(&"LYRICS".into());
