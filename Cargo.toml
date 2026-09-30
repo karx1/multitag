@@ -1,6 +1,6 @@
 [package]
 name = "multitag"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 description = "A crate for reading and writing music metadata in a variety of formats"
 license = "MIT"
@@ -12,7 +12,7 @@ readme = "README.md"
 id3 = "1.14.0"
 mp4ameta = "0.13.0"
 metaflac = "0.2.8"
-oggmeta = "1.3.0"
+oggmeta = "1.3.1"
 opusmeta = "3.0.0"
 
 [lints.clippy]
