@@ -119,6 +119,34 @@ pub enum Tag {
     OggTag { inner: OggInternalTag },
 }
 
+/// ID3 versions. multitag defaults to using ID3v2.4, but this behavior
+/// can be adjusted on a per-write basis
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Id3Version {
+    Id3v22,
+    Id3v23,
+    #[default]
+    Id3v24,
+}
+
+impl From<Id3Version> for id3::Version {
+    fn from(value: Id3Version) -> Self {
+        match value {
+            Id3Version::Id3v22 => Self::Id3v22,
+            Id3Version::Id3v23 => Self::Id3v23,
+            Id3Version::Id3v24 => Self::Id3v24,
+        }
+    }
+}
+
+/// Options to adjust behavior when writing.
+#[derive(Clone, Copy, Default, Debug)]
+pub struct WriteOptions {
+    /// Option to change what ID3 version multitag writes with.
+    /// does nothing if not writing to an ID3 file.
+    pub id3_version: Id3Version,
+}
+
 // reading/writing Tag objects
 impl Tag {
     /// Attempts to read a set of tags from the given path.
@@ -201,8 +229,19 @@ impl Tag {
     /// # Errors
     /// This function will error if writing the tags fails in any way.
     pub fn write_to_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        self.write_to_path_with_options(path, WriteOptions::default())
+    }
+
+    /// Attempts to write the tags to the indicated path, using passed [`WriteOptions`].
+    /// # Errors
+    /// This function will error if writing the tags fails in any way.
+    pub fn write_to_path_with_options<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        options: WriteOptions,
+    ) -> Result<()> {
         match self {
-            Self::Id3Tag { inner } => inner.write_to_path(path, id3::Version::Id3v24)?,
+            Self::Id3Tag { inner } => inner.write_to_path(path, options.id3_version.into())?,
             Self::VorbisFlacTag { inner } => inner.write_to_path(path)?,
             Self::Mp4Tag { inner } => inner.write_to_path(path)?,
             Self::OpusTag { inner } => inner.write_to_path(path)?,
@@ -221,8 +260,26 @@ impl Tag {
     /// This method can error if writing the tags fails, or if accessing the file fails (for
     /// example, if the modes are set wrong).
     pub fn write_to_file(&mut self, file: &mut File) -> Result<()> {
+        self.write_to_file_with_options(file, WriteOptions::default())
+    }
+
+    /// Write to a file with passed [`WriteOptions`]. The file should
+    /// already contain valid data of the correct type (e.g. the file should
+    /// already contain an opus stream in order to correctly write opus tags).
+    ///
+    /// The file's cursor should be at the beginning of the file, and it should be opened with
+    /// read and write modes set (See [`OpenOptions`] for more info).
+    ///
+    /// # Errors
+    /// This method can error if writing the tags fails, or if accessing the file fails (for
+    /// example, if the modes are set wrong).
+    pub fn write_to_file_with_options(
+        &mut self,
+        file: &mut File,
+        options: WriteOptions,
+    ) -> Result<()> {
         match self {
-            Self::Id3Tag { inner } => inner.write_to_file(file, id3::Version::Id3v24)?,
+            Self::Id3Tag { inner } => inner.write_to_file(file, options.id3_version.into())?,
             Self::VorbisFlacTag { inner } => {
                 // this is needed because metaflac doesn't provide a clean way to write without a
                 // path
@@ -256,13 +313,30 @@ impl Tag {
     /// This method can error if one of the internal write methods fails. If that happens, the
     /// inner error will contain more information.
     pub fn write_to_vec(&mut self, vec: &mut Vec<u8>) -> Result<()> {
+        self.write_to_vec_with_options(vec, WriteOptions::default())
+    }
+
+    /// Write to a byte vector with passed [`WriteOptions`]. The vector should already contain
+    /// valid data of the correct type (e.g. it should already contain an opus stream in order to
+    /// correctly write opus tags).
+    ///
+    /// # Errors
+    /// This method can error if one of the internal write methods fails. If that happens, the
+    /// inner error will contain more information.
+    pub fn write_to_vec_with_options(
+        &mut self,
+        vec: &mut Vec<u8>,
+        options: WriteOptions,
+    ) -> Result<()> {
         // we have to clone the vec because id3 and mp4ameta don't implement their traits for
         // Cursor<&mut Vec<u8>>, only Cursor<Vec<u8>>
         let cloned = vec.clone();
         let mut cursor = Cursor::new(cloned);
 
         match self {
-            Self::Id3Tag { inner } => inner.write_to_file(&mut cursor, id3::Version::Id3v24)?,
+            Self::Id3Tag { inner } => {
+                inner.write_to_file(&mut cursor, options.id3_version.into())?
+            }
             Self::VorbisFlacTag { inner } => {
                 // See write_to_file method above for rationale
                 let mut data: Vec<u8> = Vec::new();
