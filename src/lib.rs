@@ -142,6 +142,8 @@ impl From<Id3Version> for id3::Version {
 /// Options to adjust behavior when writing.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct WriteOptions {
+    /// Option to change what ID3 version multitag writes with.
+    /// does nothing if not writing to an ID3 file.
     pub id3_version: Id3Version,
 }
 
