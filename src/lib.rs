@@ -124,8 +124,8 @@ pub enum Tag {
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Id3Version {
     Id3v22,
-    #[default]
     Id3v23,
+    #[default]
     Id3v24,
 }
 
